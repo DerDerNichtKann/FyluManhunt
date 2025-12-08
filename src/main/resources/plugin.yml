@@ -1,0 +1,71 @@
+name: FyluManhunt
+version: '1.21.8'
+main: fylu.fyluManhunt.FyluManhunt
+api-version: '1.21'
+commands:
+  # --- Hauptbefehle ---
+  manhuntstart:
+    description: Startet die Manhunt Runde
+    permission: manhunt.start
+    usage: /manhuntstart
+  worldreset:
+    description: Setzt die Overworld, Nether und End komplett zurück
+    permission: manhunt.reset
+    usage: /worldreset [seed]
+  save:
+    description: Speichert oder lädt einen Spielstand (Backups)
+    permission: manhunt.save
+    usage: /save <new|load> <name>
+
+  # --- Einstellungen & Runner ---
+  secondrunner:
+    description: Fügt einen weiteren Spieler zum Runner-Team hinzu
+    permission: manhunt.setrunner
+    usage: /secondrunner <player>
+  timer:
+    description: Schaltet die Timer-Anzeige in der Actionbar an/aus
+    permission: manhunt.timer
+    usage: /timer
+  tabhearts:
+    description: Schaltet die Anzeige der Runner-Herzen im Tab an/aus
+    permission: manhunt.hearts
+    usage: /tabhearts <on/off>
+  activatorbar:
+    description: Deaktiviert Achievements und Admin-Nachrichten in den Welten
+    permission: manhunt.activator
+    usage: /activatorbar <on/off>
+  vorsprung:
+    description: Setzt die Zeit (in Sekunden), die der Runner Vorsprung hat
+    permission: manhunt.vorsprung
+    usage: /vorsprung <sekunden>
+
+  # --- Spielsteuerung ---
+  pause:
+    description: Pausiert das Spiel und friert Spieler ein
+    permission: manhunt.pause
+    usage: /pause
+  unpause:
+    description: Hebt die Pause auf
+    permission: manhunt.unpause
+    usage: /unpause
+  game:
+    description: Allgemeiner Spielbefehl
+    permission: manhunt.game
+    usage: /game
+
+  # --- Tools & Sonstiges ---
+  TrackingCompass:
+    description: Gibt dir manuell einen Kompass (passiert meist automatisch)
+    usage: /TrackingCompass
+  worldclear:
+    description: Manuelle Bereinigung der Weltenordner
+    permission: manhunt.clear
+    usage: /worldclear
+  bedbomb:
+    description: Schaltet Bedbombs im Nether/End an oder aus
+    permission: manhunt.bedbomb
+    usage: /bedbomb <nether|end> <true|false>
+  setseed:
+    description: Setzt den Seed für den nächsten World Reset
+    permission: manhunt.reset
+    usage: /setseed <wert>
