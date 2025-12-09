@@ -30,12 +30,22 @@ public class ScoreboardManager {
         }
 
         for (Player p : Bukkit.getOnlinePlayers()) {
+
             if (plugin.getGameManager().isRunner(p)) {
                 double health = p.getHealth();
-                int hearts = (int) Math.ceil(health / 2.0);
-                ChatColor color = (health <= 6) ? ChatColor.RED : (health <= 14 ? ChatColor.YELLOW : ChatColor.GREEN);
+                int heartCount = (int) Math.ceil(health / 2.0);
 
-                String newName = p.getName() + " " + color + hearts + "❤";
+                // Visualisierung mit Herzen statt Zahlen
+                StringBuilder heartsVisual = new StringBuilder();
+
+                ChatColor color = (health <= 6) ? ChatColor.RED : (health <= 14 ? ChatColor.YELLOW : ChatColor.GREEN);
+                heartsVisual.append(color);
+
+                for(int i = 0; i < heartCount; i++) {
+                    heartsVisual.append("❤");
+                }
+
+                String newName = p.getName() + " " + heartsVisual.toString();
                 p.setPlayerListName(newName);
             } else {
                 p.setPlayerListName(p.getName());

@@ -8,7 +8,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -33,7 +32,7 @@ public class GameManager {
     private boolean bedbombNether = true;
     private boolean bedbombEnd = true;
     private int headStartSeconds = 60;
-    private Difficulty difficulty = Difficulty.NORMAL; // Standard Schwierigkeit
+    private Difficulty difficulty = Difficulty.NORMAL;
 
     // Runtime
     private int gameTime = 0;
@@ -94,19 +93,16 @@ public class GameManager {
         aliveRunners.clear();
         aliveRunners.addAll(runners);
 
-        // Welt vorbereiten
         World gw = plugin.getWorldManager().getGameWorld();
         gw.setTime(1000);
         gw.setStorm(false);
-        gw.setDifficulty(difficulty); // Schwierigkeit setzen
+        gw.setDifficulty(difficulty);
 
-        // Difficulty auch für Nether/End anwenden
         World nether = Bukkit.getWorld(WorldManager.NETHER_WORLD);
         if(nether != null) nether.setDifficulty(difficulty);
         World end = Bukkit.getWorld(WorldManager.END_WORLD);
         if(end != null) end.setDifficulty(difficulty);
 
-        // Alle Spieler resetten
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.setHealth(20);
             p.setFoodLevel(20);
@@ -118,7 +114,6 @@ public class GameManager {
             p.getActivePotionEffects().forEach(e -> p.removePotionEffect(e.getType()));
         }
 
-        // Runner Teleport
         for (UUID uuid : runners) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
@@ -131,7 +126,6 @@ public class GameManager {
         startTimer();
         startAutoSave();
 
-        // Hunter Logik
         Bukkit.broadcastMessage(ChatColor.YELLOW + "Spiel gestartet! Hunter kommen in " + headStartSeconds + " Sekunden.");
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -146,15 +140,13 @@ public class GameManager {
         }, headStartSeconds * 20L);
     }
 
-    // --- GAME OVER LOGIK ---
 
     public void eliminateRunner(Player p) {
         if (!isRunning) return;
         if (aliveRunners.contains(p.getUniqueId())) {
             aliveRunners.remove(p.getUniqueId());
             p.setGameMode(GameMode.SPECTATOR);
-            Bukkit.broadcastMessage(ChatColor.RED + ChatColor.BOLD.toString() + "Runner " + p.getName() + " ist ausgeschieden!");
-            p.sendTitle(ChatColor.RED + "ELIMINIERT", "Du bist nun Zuschauer", 10, 60, 20);
+            p.sendTitle(ChatColor.RED + "ELIMINIERT", "", 10, 60, 20);
             checkWinConditions();
         }
     }
@@ -171,44 +163,15 @@ public class GameManager {
     }
 
     private void finishGame(boolean runnersWon) {
-        stopGame(); // Stoppt Timer etc.
-
-        String title = runnersWon ? ChatColor.GREEN + "RUNNER GEWINNEN!" : ChatColor.RED + "HUNTER GEWINNEN!";
-        String sub = runnersWon ? "Der Drache ist tot" : "Alle Runner wurden eliminiert";
-
+        stopGame();
         for (Player p : Bukkit.getOnlinePlayers()) {
-            p.sendTitle(title, sub, 10, 100, 20);
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
         }
 
-        // --- 10 SEKUNDEN TIMER BIS RESET ---
-        Bukkit.broadcastMessage(ChatColor.GRAY + "--------------------------------");
-        Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "RUNDE VORBEI!");
-        Bukkit.broadcastMessage(ChatColor.YELLOW + "Automatischer Reset und Teleport in 10 Sekunden...");
-        Bukkit.broadcastMessage(ChatColor.GRAY + "--------------------------------");
-
-        new BukkitRunnable() {
-            int seconds = 10;
-            @Override
-            public void run() {
-                if (seconds <= 0) {
-                    this.cancel();
-                    plugin.getWorldManager().resetWorlds(); // Reset & Teleport zur Lobby
-                    return;
-                }
-                if (seconds <= 5) {
-                    Bukkit.broadcastMessage(ChatColor.AQUA + "Reset in " + seconds + "...");
-                    for(Player p : Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
-                }
-                seconds--;
-            }
-        }.runTaskTimer(plugin, 0L, 20L);
     }
 
-    // --- AUTO SAVE / CRASH RECOVERY ---
 
     public void startAutoSave() {
-        // Speichert alle 30 Sekunden (600 Ticks)
         autoSaveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::saveCrashRecoveryFile, 600L, 600L);
     }
 
@@ -223,13 +186,11 @@ public class GameManager {
         cfg.set("game.runners", runners.stream().map(UUID::toString).collect(Collectors.toList()));
         cfg.set("game.alive", aliveRunners.stream().map(UUID::toString).collect(Collectors.toList()));
 
-        // Settings sichern
         cfg.set("settings.headstart", headStartSeconds);
         cfg.set("settings.bedbomb.nether", bedbombNether);
         cfg.set("settings.bedbomb.end", bedbombEnd);
         cfg.set("settings.difficulty", difficulty.name());
 
-        // Spieler Inventare & Positionen sichern
         for (Player p : Bukkit.getOnlinePlayers()) {
             String path = "players." + p.getUniqueId();
             cfg.set(path + ".loc", p.getLocation());
@@ -258,18 +219,13 @@ public class GameManager {
         this.headStartSeconds = cfg.getInt("settings.headstart");
         this.bedbombNether = cfg.getBoolean("settings.bedbomb.nether");
         this.bedbombEnd = cfg.getBoolean("settings.bedbomb.end");
-
-        try {
-            this.difficulty = Difficulty.valueOf(cfg.getString("settings.difficulty", "NORMAL"));
-        } catch (Exception e) { this.difficulty = Difficulty.NORMAL; }
+        try { this.difficulty = Difficulty.valueOf(cfg.getString("settings.difficulty", "NORMAL")); } catch (Exception e) {}
 
         this.runners.clear();
         for(String s : cfg.getStringList("game.runners")) this.runners.add(UUID.fromString(s));
-
         this.aliveRunners.clear();
         for(String s : cfg.getStringList("game.alive")) this.aliveRunners.add(UUID.fromString(s));
 
-        // Spieler wiederherstellen
         for (Player p : Bukkit.getOnlinePlayers()) {
             String path = "players." + p.getUniqueId();
             if (cfg.contains(path)) {
@@ -278,15 +234,14 @@ public class GameManager {
                     p.setHealth(cfg.getDouble(path + ".hp"));
                     p.setFoodLevel(cfg.getInt(path + ".food"));
 
-                    List<ItemStack> inv = (List<ItemStack>) cfg.getList(path + ".inv");
+                    List<?> inv = cfg.getList(path + ".inv");
                     if(inv != null) p.getInventory().setContents(inv.toArray(new ItemStack[0]));
-
-                    List<ItemStack> armor = (List<ItemStack>) cfg.getList(path + ".armor");
+                    List<?> armor = cfg.getList(path + ".armor");
                     if(armor != null) p.getInventory().setArmorContents(armor.toArray(new ItemStack[0]));
 
                     p.setGameMode(GameMode.valueOf(cfg.getString(path + ".gamemode", "SURVIVAL")));
                 } catch (Exception e) {
-                    Bukkit.getLogger().warning("Konnte Spieler " + p.getName() + " nicht komplett wiederherstellen.");
+                    Bukkit.getLogger().warning("Fehler Restore Player: " + p.getName());
                 }
             }
         }
@@ -304,7 +259,7 @@ public class GameManager {
         if(file.exists()) file.delete();
     }
 
-    // --- SETTINGS GETTER/SETTER ---
+    // --- GETTER/SETTER & TOOLS ---
 
     public Difficulty getDifficulty() { return difficulty; }
     public void setDifficulty(Difficulty d) { this.difficulty = d; }
@@ -325,8 +280,6 @@ public class GameManager {
     public void setHeadStartSeconds(int s) { this.headStartSeconds = s; }
     public void toggleTimerVisibility() { this.timerVisible = !this.timerVisible; }
     public boolean isTimerVisible() { return timerVisible; }
-
-    // --- STANDARD METHODEN ---
 
     public void stopGame() {
         isRunning = false;
@@ -354,28 +307,19 @@ public class GameManager {
     public void setGameTime(int t) { this.gameTime = t; }
 
     public void forceStartGameWithoutTeleport() {
-        this.isRunning = true;
-        this.isPaused = true;
-        aliveRunners.clear();
-        aliveRunners.addAll(runners);
-        plugin.getScoreboardManager().startHeartTask();
-        startTimer();
+        isRunning = true; isPaused = true; aliveRunners.clear(); aliveRunners.addAll(runners);
+        plugin.getScoreboardManager().startHeartTask(); startTimer();
     }
 
     private void startTimer() {
         if (timerTask != null && !timerTask.isCancelled()) timerTask.cancel();
-
-        // Update alle 5 Ticks (0.25s) für flüssigen Kompass
         timerTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
             int tickCounter = 0;
-
             @Override
             public void run() {
                 if (isRunning && !isPaused) {
                     tickCounter++;
                     plugin.getCompassManager().updateTrackers();
-
-                    // Jede Sekunde (4 * 5 Ticks = 20 Ticks)
                     if (tickCounter >= 4) {
                         tickCounter = 0;
                         gameTime++;

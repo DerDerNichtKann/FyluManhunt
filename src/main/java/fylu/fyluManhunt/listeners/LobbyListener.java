@@ -2,13 +2,19 @@ package fylu.fyluManhunt.listeners;
 
 import fylu.fyluManhunt.FyluManhunt;
 import fylu.fyluManhunt.manager.GameManager;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
+import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntitySpawnEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -31,12 +37,45 @@ public class LobbyListener implements Listener {
         this.plugin = plugin;
     }
 
-    private boolean isInLobby(Player p) {
-        return p.getWorld().getName().equals("world") && !plugin.getGameManager().isGameRunning();
+    private boolean isInLobbyWorld(Player p) {
+        return p.getWorld().getName().equals("world");
     }
 
+    // --- MOB SPAWN BLOCKER ---
     @EventHandler
-    public void onJoin(PlayerJoinEvent e) { handleLobbyJoin(e.getPlayer()); }
+    public void onMobSpawn(EntitySpawnEvent e) {
+        if (e.getEntity().getWorld().getName().equals("world")) {
+            if (e.getEntityType() != EntityType.PLAYER && e.getEntityType() != EntityType.ITEM) {
+                e.setCancelled(true);
+            }
+        }
+    }
+
+    // --- JOIN HANDLING (LATE JOIN) ---
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+
+        // FALL 1: Spiel läuft bereits -> Direkt ins Spiel
+        if (plugin.getGameManager().isGameRunning()) {
+            p.setGameMode(GameMode.SURVIVAL);
+            p.getInventory().clear();
+
+            // Teleport zum Spiel-Spawn
+            p.teleport(plugin.getWorldManager().getGameWorld().getSpawnLocation());
+
+            // Wenn kein Runner, Kompass geben
+            if (!plugin.getGameManager().isRunner(p)) {
+                plugin.getCompassManager().giveCompass(p);
+                p.sendMessage(ChatColor.YELLOW + "Du bist dem laufenden Spiel beigetreten.");
+            }
+            return;
+        }
+
+        // FALL 2: Lobby
+        handleLobbyJoin(p);
+    }
 
     @EventHandler
     public void onTeleport(PlayerTeleportEvent e) {
@@ -46,10 +85,14 @@ public class LobbyListener implements Listener {
     }
 
     public void handleLobbyJoin(Player p) {
-        if (plugin.getGameManager().isGameRunning()) return;
-        p.setHealth(20); p.setFoodLevel(20); p.setFireTicks(0); p.setFallDistance(0);
+        // Clean Player
+        p.setHealth(20);
+        p.setFoodLevel(20);
+        p.setFireTicks(0);
+        p.setFallDistance(0);
         p.getActivePotionEffects().forEach(eff -> p.removePotionEffect(eff.getType()));
         p.setGameMode(GameMode.ADVENTURE);
+
         giveLobbyItems(p);
     }
 
@@ -71,12 +114,14 @@ public class LobbyListener implements Listener {
         return item;
     }
 
+    // --- INTERAKTIONEN ---
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
-        if (!isInLobby(e.getPlayer())) return;
+        if (!isInLobbyWorld(e.getPlayer()) || plugin.getGameManager().isGameRunning()) return;
         if (e.getAction() == Action.PHYSICAL) { e.setCancelled(true); return; }
         if (e.getItem() == null) return;
         if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+
         Player p = e.getPlayer();
         if (!p.isOp()) return;
 
@@ -86,6 +131,7 @@ public class LobbyListener implements Listener {
         else if (type == Material.LIME_STAINED_GLASS_PANE) { e.setCancelled(true); plugin.getGameManager().startGame(); }
     }
 
+    // --- GUI METHODEN ---
     private void openRunnerGUI(Player p) {
         Inventory gui = Bukkit.createInventory(null, 27, TITLE_RUNNER);
         for (Player online : Bukkit.getOnlinePlayers()) {
@@ -121,7 +167,6 @@ public class LobbyListener implements Listener {
 
         gui.setItem(16, createSettingItem(Material.GOLDEN_APPLE, "Tab-Herzen", plugin.getScoreboardManager().isShowingHearts()));
 
-        // NEU: Difficulty
         ItemStack diffItem = new ItemStack(Material.IRON_SWORD);
         ItemMeta dm = diffItem.getItemMeta();
         dm.setDisplayName(ChatColor.AQUA + "Schwierigkeit");
@@ -167,7 +212,7 @@ public class LobbyListener implements Listener {
             else if (name.contains("Bedbomb End")) gm.setBedbombEnd(!gm.isBedbombEnd());
             else if (name.contains("Timer sichtbar")) gm.toggleTimerVisibility();
             else if (name.contains("Tab-Herzen")) plugin.getScoreboardManager().setShowHearts(!plugin.getScoreboardManager().isShowingHearts());
-            else if (name.contains("Schwierigkeit")) { gm.cycleDifficulty(); } // NEU
+            else if (name.contains("Schwierigkeit")) { gm.cycleDifficulty(); }
             else if (name.contains("Vorsprung")) {
                 int current = gm.getHeadStartSeconds();
                 if (e.isLeftClick()) current += 10;
@@ -179,7 +224,7 @@ public class LobbyListener implements Listener {
         }
     }
 
-    @EventHandler public void onBreak(BlockBreakEvent e) { if (isInLobby(e.getPlayer()) && !e.getPlayer().isOp()) e.setCancelled(true); }
-    @EventHandler public void onPlace(BlockPlaceEvent e) { if (isInLobby(e.getPlayer()) && !e.getPlayer().isOp()) e.setCancelled(true); }
-    @EventHandler public void onDrop(PlayerDropItemEvent e) { if (isInLobby(e.getPlayer()) && !e.getPlayer().isOp()) e.setCancelled(true); }
+    @EventHandler public void onBreak(BlockBreakEvent e) { if (isInLobbyWorld(e.getPlayer()) && !e.getPlayer().isOp()) e.setCancelled(true); }
+    @EventHandler public void onPlace(BlockPlaceEvent e) { if (isInLobbyWorld(e.getPlayer()) && !e.getPlayer().isOp()) e.setCancelled(true); }
+    @EventHandler public void onDrop(PlayerDropItemEvent e) { if (isInLobbyWorld(e.getPlayer()) && !e.getPlayer().isOp()) e.setCancelled(true); }
 }
