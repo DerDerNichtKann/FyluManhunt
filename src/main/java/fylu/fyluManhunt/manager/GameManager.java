@@ -4,14 +4,10 @@ import fylu.fyluManhunt.FyluManhunt;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -21,11 +17,9 @@ public class GameManager {
 
     private final FyluManhunt plugin;
 
-    // Listen
     private final List<UUID> runners = new ArrayList<>();
     private final List<UUID> aliveRunners = new ArrayList<>();
 
-    // Settings
     private boolean isRunning = false;
     private boolean isPaused = false;
     private boolean timerVisible = true;
@@ -34,7 +28,6 @@ public class GameManager {
     private int headStartSeconds = 60;
     private Difficulty difficulty = Difficulty.NORMAL;
 
-    // Runtime
     private int gameTime = 0;
     private BukkitTask timerTask;
     private BukkitTask autoSaveTask;
@@ -42,8 +35,6 @@ public class GameManager {
     public GameManager(FyluManhunt plugin) {
         this.plugin = plugin;
     }
-
-    // --- RUNNER LOGIK ---
 
     public void addRunner(Player p) {
         if (!runners.contains(p.getUniqueId())) {
@@ -74,15 +65,11 @@ public class GameManager {
     public boolean isRunner(Player p) { return runners.contains(p.getUniqueId()); }
     public List<UUID> getRunnerUUIDs() { return runners; }
 
-
-    // --- SPIEL START ---
     public void startGame() {
         if (runners.isEmpty()) {
             Bukkit.broadcastMessage(ChatColor.RED + "Keine Runner ausgewählt!");
             return;
         }
-
-        // Erst Chunks laden, dann Start ausführen
         plugin.getWorldManager().preloadChunksAndStart(this::executeStartLogic);
     }
 
@@ -104,21 +91,13 @@ public class GameManager {
         if(end != null) end.setDifficulty(difficulty);
 
         for (Player p : Bukkit.getOnlinePlayers()) {
-            p.setHealth(20);
-            p.setFoodLevel(20);
-            p.getInventory().clear();
-            p.setGameMode(GameMode.SURVIVAL);
-            p.getInventory().setArmorContents(null);
-            p.setExp(0);
-            p.setLevel(0);
-            p.getActivePotionEffects().forEach(e -> p.removePotionEffect(e.getType()));
+            PlayerStateManager.resetPlayerFull(p);
         }
 
         for (UUID uuid : runners) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
                 p.teleport(gw.getSpawnLocation());
-                p.sendMessage(ChatColor.GREEN + "Lauf um dein Leben! Der Drache muss sterben!");
             }
         }
 
@@ -133,82 +112,67 @@ public class GameManager {
                 if (!isRunner(p)) {
                     p.teleport(gw.getSpawnLocation());
                     p.sendMessage(ChatColor.RED + "JAGD DIE RUNNER!");
-                    p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f);
                     plugin.getCompassManager().giveCompass(p);
                 }
             }
         }, headStartSeconds * 20L);
     }
 
-
     public void eliminateRunner(Player p) {
         if (!isRunning) return;
         if (aliveRunners.contains(p.getUniqueId())) {
             aliveRunners.remove(p.getUniqueId());
             p.setGameMode(GameMode.SPECTATOR);
-            p.sendTitle(ChatColor.RED + "ELIMINIERT", "", 10, 60, 20);
+            Bukkit.broadcastMessage(ChatColor.RED + p.getName() + " ist gestorben!");
             checkWinConditions();
         }
     }
 
     public void dragonDied() {
         if (!isRunning) return;
-        finishGame(true);
+        finishGame();
     }
 
     private void checkWinConditions() {
         if (aliveRunners.isEmpty()) {
-            finishGame(false);
+            finishGame();
         }
     }
 
-    private void finishGame(boolean runnersWon) {
+    private void finishGame() {
         stopGame();
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
-        }
-
+        // KEIN Sound, KEIN Title, KEIN Chat - wie gewünscht
     }
-
 
     public void startAutoSave() {
-        autoSaveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::saveCrashRecoveryFile, 600L, 600L);
+        autoSaveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::saveCrashRecoveryFile, 1200L, 1200L);
     }
 
     public void saveCrashRecoveryFile() {
         if (!isRunning) return;
 
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
 
+        PlayerStateManager.savePlayerStates(file);
+
+        org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         cfg.set("game.running", true);
         cfg.set("game.time", gameTime);
         cfg.set("game.runners", runners.stream().map(UUID::toString).collect(Collectors.toList()));
         cfg.set("game.alive", aliveRunners.stream().map(UUID::toString).collect(Collectors.toList()));
-
         cfg.set("settings.headstart", headStartSeconds);
         cfg.set("settings.bedbomb.nether", bedbombNether);
         cfg.set("settings.bedbomb.end", bedbombEnd);
         cfg.set("settings.difficulty", difficulty.name());
 
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            String path = "players." + p.getUniqueId();
-            cfg.set(path + ".loc", p.getLocation());
-            cfg.set(path + ".hp", p.getHealth());
-            cfg.set(path + ".food", p.getFoodLevel());
-            cfg.set(path + ".inv", p.getInventory().getContents());
-            cfg.set(path + ".armor", p.getInventory().getArmorContents());
-            cfg.set(path + ".gamemode", p.getGameMode().toString());
-        }
-
-        try { cfg.save(file); } catch (IOException e) { e.printStackTrace(); }
+        try { cfg.save(file); } catch (Exception e) { e.printStackTrace(); }
     }
 
     public void tryRestoreGame() {
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
         if (!file.exists()) return;
 
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         if (!cfg.getBoolean("game.running")) return;
 
         Bukkit.getLogger().info("FyluManhunt: Crash erkannt! Stelle Spielstand wieder her...");
@@ -226,25 +190,7 @@ public class GameManager {
         this.aliveRunners.clear();
         for(String s : cfg.getStringList("game.alive")) this.aliveRunners.add(UUID.fromString(s));
 
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            String path = "players." + p.getUniqueId();
-            if (cfg.contains(path)) {
-                try {
-                    p.teleport((Location) cfg.get(path + ".loc"));
-                    p.setHealth(cfg.getDouble(path + ".hp"));
-                    p.setFoodLevel(cfg.getInt(path + ".food"));
-
-                    List<?> inv = cfg.getList(path + ".inv");
-                    if(inv != null) p.getInventory().setContents(inv.toArray(new ItemStack[0]));
-                    List<?> armor = cfg.getList(path + ".armor");
-                    if(armor != null) p.getInventory().setArmorContents(armor.toArray(new ItemStack[0]));
-
-                    p.setGameMode(GameMode.valueOf(cfg.getString(path + ".gamemode", "SURVIVAL")));
-                } catch (Exception e) {
-                    Bukkit.getLogger().warning("Fehler Restore Player: " + p.getName());
-                }
-            }
-        }
+        PlayerStateManager.loadPlayerStates(file);
 
         plugin.getScoreboardManager().startHeartTask();
         startTimer();
@@ -258,8 +204,6 @@ public class GameManager {
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
         if(file.exists()) file.delete();
     }
-
-    // --- GETTER/SETTER & TOOLS ---
 
     public Difficulty getDifficulty() { return difficulty; }
     public void setDifficulty(Difficulty d) { this.difficulty = d; }
@@ -287,7 +231,7 @@ public class GameManager {
         if (autoSaveTask != null) autoSaveTask.cancel();
         deleteCrashFile();
         aliveRunners.clear();
-        plugin.getScoreboardManager().setShowHearts(false);
+        plugin.getScoreboardManager().clearTeams();
     }
 
     public void setPaused(boolean paused) {

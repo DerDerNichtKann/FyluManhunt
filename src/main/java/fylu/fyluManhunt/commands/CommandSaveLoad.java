@@ -48,10 +48,9 @@ public class CommandSaveLoad implements CommandExecutor, TabCompleter {
         if (args.length == 1) return Arrays.asList("new", "load");
         if (args.length == 2 && args[0].equalsIgnoreCase("load")) {
             File backupDir = new File(plugin.getDataFolder(), "backups");
-            if (backupDir.exists()) {
-                String[] files = backupDir.list();
-                if(files != null) return Arrays.asList(files);
-            }
+            if (!backupDir.exists() || !backupDir.isDirectory()) return new ArrayList<>();
+            String[] files = backupDir.list();
+            if(files != null) return Arrays.asList(files);
         }
         return new ArrayList<>();
     }
