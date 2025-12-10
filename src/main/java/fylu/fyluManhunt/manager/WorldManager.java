@@ -1,6 +1,7 @@
 package fylu.fyluManhunt.manager;
 
 import fylu.fyluManhunt.FyluManhunt;
+import fylu.fyluManhunt.listeners.LobbyListener;
 import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -48,7 +49,11 @@ public class WorldManager {
             File backupDir = new File(plugin.getDataFolder(), "backups");
             if (backupDir.exists()) deleteFolder(backupDir);
 
-            for(Player p : Bukkit.getOnlinePlayers()) PlayerStateManager.resetPlayerFull(p);
+            // Spieler Reset + Items geben
+            for(Player p : Bukkit.getOnlinePlayers()) {
+                PlayerStateManager.resetPlayerFull(p);
+                LobbyListener.giveLobbyItems(p); // Items neu vergeben
+            }
 
             long seed;
             if (nextSeed != null) {
@@ -71,38 +76,52 @@ public class WorldManager {
 
     public void saveGame(String slotName, CommandSender sender) {
         plugin.getGameManager().setPaused(true);
-        sender.sendMessage(ChatColor.YELLOW + "Speichere Spielstand '" + slotName + "'...");
+        sender.sendMessage(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
 
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        // 1. Welten SYNCHRON speichern (verhindert AsyncCatcher Fehler)
+        Bukkit.getScheduler().runTask(plugin, () -> {
             try {
-                File backupDir = new File(plugin.getDataFolder(), "backups/" + slotName);
-                if (!backupDir.exists()) backupDir.mkdirs();
+                for(World w : Bukkit.getWorlds()) {
+                    w.save();
+                }
 
-                for(World w : Bukkit.getWorlds()) w.save();
+                // 2. Dateien ASYNCHRON kopieren
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                    try {
+                        File backupDir = new File(plugin.getDataFolder(), "backups/" + slotName);
+                        if (!backupDir.exists()) backupDir.mkdirs();
 
-                copyWorldFolder(GAME_WORLD, backupDir);
-                copyWorldFolder(NETHER_WORLD, backupDir);
-                copyWorldFolder(END_WORLD, backupDir);
+                        copyWorldFolder(GAME_WORLD, backupDir);
+                        copyWorldFolder(NETHER_WORLD, backupDir);
+                        copyWorldFolder(END_WORLD, backupDir);
 
-                Bukkit.getScheduler().runTask(plugin, () -> {
-                    PlayerStateManager.savePlayerStates(new File(backupDir, "playerdata.yml"));
+                        // 3. Abschluss wieder Synchron
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            PlayerStateManager.savePlayerStates(new File(backupDir, "playerdata.yml"));
 
-                    plugin.getGameManager().saveCrashRecoveryFile();
-                    File crashFile = new File(plugin.getDataFolder(), "crash_recovery.yml");
-                    if(crashFile.exists()) {
-                        try {
-                            Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
-                        } catch(IOException e) { e.printStackTrace(); }
+                            plugin.getGameManager().saveCrashRecoveryFile();
+                            File crashFile = new File(plugin.getDataFolder(), "crash_recovery.yml");
+                            if(crashFile.exists()) {
+                                try {
+                                    Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                                } catch(IOException e) { e.printStackTrace(); }
+                            }
+                            sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich gespeichert!");
+                        });
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        sender.sendMessage(ChatColor.RED + "Fehler beim Kopieren der Dateien: " + e.getMessage());
                     }
-                    sender.sendMessage(ChatColor.GREEN + "Backup gespeichert!");
                 });
 
             } catch (Exception e) {
                 e.printStackTrace();
-                sender.sendMessage(ChatColor.RED + "Fehler beim Speichern: " + e.getMessage());
+                sender.sendMessage(ChatColor.RED + "Fehler beim Speichern der Welten: " + e.getMessage());
             }
         });
     }
+
     public void disableActivatorRules() {
         for (String s : new String[]{GAME_WORLD, NETHER_WORLD, END_WORLD}) {
             org.bukkit.World w = org.bukkit.Bukkit.getWorld(s);
@@ -271,7 +290,10 @@ public class WorldManager {
         if(lobby == null && !Bukkit.getWorlds().isEmpty()) lobby = Bukkit.getWorlds().get(0);
         if(lobby != null) {
             Location spawn = lobby.getSpawnLocation();
-            for(Player p : Bukkit.getOnlinePlayers()) p.teleport(spawn);
+            for(Player p : Bukkit.getOnlinePlayers()) {
+                p.teleport(spawn);
+                p.setGameMode(GameMode.ADVENTURE);
+            }
         }
     }
 

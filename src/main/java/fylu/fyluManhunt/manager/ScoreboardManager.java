@@ -55,9 +55,10 @@ public class ScoreboardManager {
             }
 
             if (showHearts && plugin.getGameManager().isRunner(p)) {
-                int hp = (int) Math.ceil(p.getHealth() / 2.0);
+                int hp = (int) p.getHealth();
                 StringBuilder hearts = new StringBuilder(" " + ChatColor.RED);
                 for(int i=0; i<hp; i++) hearts.append("❤");
+
                 p.setPlayerListName(ChatColor.RED + p.getName() + hearts.toString());
             } else {
                 p.setPlayerListName(null);

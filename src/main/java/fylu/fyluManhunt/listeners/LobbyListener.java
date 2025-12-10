@@ -41,31 +41,26 @@ public class LobbyListener implements Listener {
         return p.getWorld().getName().equals("world");
     }
 
-    // --- MOB SPAWN BLOCKER ---
     @EventHandler
     public void onMobSpawn(EntitySpawnEvent e) {
         if (e.getEntity().getWorld().getName().equals("world")) {
-            if (e.getEntityType() != EntityType.PLAYER && e.getEntityType() != EntityType.ITEM) {
+            // Blockiere alles außer Spieler, ArmorStands und Items
+            if (e.getEntityType() != EntityType.PLAYER &&
+                    e.getEntityType() != EntityType.ARMOR_STAND &&
+                    e.getEntityType() != EntityType.ITEM) {
                 e.setCancelled(true);
             }
         }
     }
 
-    // --- JOIN HANDLING (LATE JOIN) ---
-
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
 
-        // FALL 1: Spiel läuft bereits -> Direkt ins Spiel
         if (plugin.getGameManager().isGameRunning()) {
             p.setGameMode(GameMode.SURVIVAL);
             p.getInventory().clear();
-
-            // Teleport zum Spiel-Spawn
             p.teleport(plugin.getWorldManager().getGameWorld().getSpawnLocation());
-
-            // Wenn kein Runner, Kompass geben
             if (!plugin.getGameManager().isRunner(p)) {
                 plugin.getCompassManager().giveCompass(p);
                 p.sendMessage(ChatColor.YELLOW + "Du bist dem laufenden Spiel beigetreten.");
@@ -73,7 +68,6 @@ public class LobbyListener implements Listener {
             return;
         }
 
-        // FALL 2: Lobby
         handleLobbyJoin(p);
     }
 
@@ -85,7 +79,6 @@ public class LobbyListener implements Listener {
     }
 
     public void handleLobbyJoin(Player p) {
-        // Clean Player
         p.setHealth(20);
         p.setFoodLevel(20);
         p.setFireTicks(0);
@@ -96,7 +89,7 @@ public class LobbyListener implements Listener {
         giveLobbyItems(p);
     }
 
-    private void giveLobbyItems(Player p) {
+    public static void giveLobbyItems(Player p) {
         p.getInventory().clear();
         if (p.isOp()) {
             p.getInventory().setItem(0, createItem(Material.CLOCK, ChatColor.GOLD + "Runner wählen " + ChatColor.GRAY + "(Rechtsklick)"));
@@ -105,7 +98,7 @@ public class LobbyListener implements Listener {
         }
     }
 
-    private ItemStack createItem(Material mat, String name, String... lore) {
+    private static ItemStack createItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(name);
@@ -114,7 +107,6 @@ public class LobbyListener implements Listener {
         return item;
     }
 
-    // --- INTERAKTIONEN ---
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
         if (!isInLobbyWorld(e.getPlayer()) || plugin.getGameManager().isGameRunning()) return;
@@ -131,7 +123,6 @@ public class LobbyListener implements Listener {
         else if (type == Material.LIME_STAINED_GLASS_PANE) { e.setCancelled(true); plugin.getGameManager().startGame(); }
     }
 
-    // --- GUI METHODEN ---
     private void openRunnerGUI(Player p) {
         Inventory gui = Bukkit.createInventory(null, 27, TITLE_RUNNER);
         for (Player online : Bukkit.getOnlinePlayers()) {
