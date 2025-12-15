@@ -18,7 +18,6 @@ public class CommandTools implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
-        // --- /TrackingCompass ---
         if (label.equalsIgnoreCase("TrackingCompass")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(ChatColor.RED + "Nur für Spieler.");
@@ -30,7 +29,6 @@ public class CommandTools implements CommandExecutor {
                 return true;
             }
 
-            // Runner brauchen keinen
             Player p = (Player) sender;
             if (plugin.getGameManager().isRunner(p)) {
                 sender.sendMessage(ChatColor.RED + "Runner brauchen keinen Tracker!");
@@ -42,7 +40,6 @@ public class CommandTools implements CommandExecutor {
             return true;
         }
 
-        // --- /setseed ---
         if (label.equalsIgnoreCase("setseed")) {
             if (!sender.hasPermission("manhunt.reset")) return true;
             if (args.length != 1) {
@@ -55,7 +52,6 @@ public class CommandTools implements CommandExecutor {
             return true;
         }
 
-        // --- /bedbomb ---
         if (label.equalsIgnoreCase("bedbomb")) {
             if (!sender.hasPermission("manhunt.bedbomb")) return true;
             if (args.length != 2) {

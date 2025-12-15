@@ -2,11 +2,7 @@ package fylu.fyluManhunt.listeners;
 
 import fylu.fyluManhunt.FyluManhunt;
 import fylu.fyluManhunt.manager.GameManager;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
-import org.bukkit.Material;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -44,7 +40,6 @@ public class LobbyListener implements Listener {
     @EventHandler
     public void onMobSpawn(EntitySpawnEvent e) {
         if (e.getEntity().getWorld().getName().equals("world")) {
-            // Blockiere alles außer Spieler, ArmorStands und Items
             if (e.getEntityType() != EntityType.PLAYER &&
                     e.getEntityType() != EntityType.ARMOR_STAND &&
                     e.getEntityType() != EntityType.ITEM) {
@@ -58,12 +53,22 @@ public class LobbyListener implements Listener {
         Player p = e.getPlayer();
 
         if (plugin.getGameManager().isGameRunning()) {
-            p.setGameMode(GameMode.SURVIVAL);
-            p.getInventory().clear();
-            p.teleport(plugin.getWorldManager().getGameWorld().getSpawnLocation());
-            if (!plugin.getGameManager().isRunner(p)) {
-                plugin.getCompassManager().giveCompass(p);
-                p.sendMessage(ChatColor.YELLOW + "Du bist dem laufenden Spiel beigetreten.");
+            if (isInLobbyWorld(p)) {
+                p.setGameMode(GameMode.SURVIVAL);
+                p.getInventory().clear();
+                World gameWorld = plugin.getWorldManager().getGameWorld();
+                Location spawn = gameWorld.getSpawnLocation();
+                spawn.setY(gameWorld.getHighestBlockYAt(spawn) + 1);
+                p.teleport(spawn);
+
+                if (!plugin.getGameManager().isRunner(p)) {
+                    plugin.getCompassManager().giveCompass(p);
+                    p.sendMessage(ChatColor.YELLOW + "Du bist dem laufenden Spiel beigetreten.");
+                }
+            } else {
+                if (!plugin.getGameManager().isRunner(p)) {
+                    plugin.getCompassManager().giveCompass(p);
+                }
             }
             return;
         }

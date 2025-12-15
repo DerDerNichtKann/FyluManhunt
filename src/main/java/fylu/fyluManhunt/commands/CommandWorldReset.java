@@ -16,11 +16,9 @@ public class CommandWorldReset implements CommandExecutor {
         if (!sender.hasPermission("manhunt.reset")) return true;
 
         if (args.length > 0) {
-            // Seed setzen
             plugin.getWorldManager().setNextSeed(args[0]);
         }
 
-        // Reset ausführen (Nutzt den gesetzten Seed oder Zufall)
         plugin.getWorldManager().resetWorlds();
         sender.sendMessage(ChatColor.GREEN + "Welt Reset eingeleitet!");
         return true;

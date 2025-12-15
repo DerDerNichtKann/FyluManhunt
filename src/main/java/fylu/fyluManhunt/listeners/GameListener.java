@@ -16,7 +16,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 
 public class GameListener implements Listener {
@@ -27,8 +26,6 @@ public class GameListener implements Listener {
         this.plugin = plugin;
     }
 
-    // --- LOBBY SCHUTZ ---
-
     private boolean isInLobby(Player p) {
         return p.getWorld().getName().equals("world");
     }
@@ -36,13 +33,11 @@ public class GameListener implements Listener {
     @EventHandler
     public void onLobbyDamage(EntityDamageEvent e) {
         if (e.getEntity() instanceof Player && isInLobby((Player) e.getEntity())) {
-            e.setCancelled(true); // Kein Schaden in Lobby
-            // Falls Void, teleportiere zum Spawn
+            e.setCancelled(true);
             if (e.getCause() == EntityDamageEvent.DamageCause.VOID) {
                 e.getEntity().teleport(Bukkit.getWorld("world").getSpawnLocation());
             }
         }
-        // Pause check
         if (plugin.getGameManager().isPaused()) e.setCancelled(true);
     }
 
@@ -63,22 +58,14 @@ public class GameListener implements Listener {
         }
     }
 
-    // --- GAMEPLAY: TOD & RESPAWN ---
-
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent e) {
         if (!plugin.getGameManager().isGameRunning()) return;
         Player p = e.getEntity();
 
-        // RUNNER TOD
         if (plugin.getGameManager().isRunner(p)) {
             plugin.getServer().getScheduler().runTask(plugin, () -> plugin.getGameManager().eliminateRunner(p));
-            e.setDeathMessage(ChatColor.RED + p.getName() + " ist gestorben!");
-            e.getDrops().clear();
-        }
-        // HUNTER TOD
-        else {
-            // Kompass nicht droppen
+        } else {
             e.getDrops().removeIf(item -> item.getType() == Material.COMPASS);
         }
     }
@@ -87,46 +74,37 @@ public class GameListener implements Listener {
     public void onRespawn(PlayerRespawnEvent e) {
         Player p = e.getPlayer();
 
-        // Wenn Spiel läuft oder gerade vorbei ist
         if (plugin.getGameManager().isGameRunning() || !isInLobby(p)) {
-
-            // Hunter Kompass wiedergeben (falls er ihn verloren hätte, sicherheitshalber)
             if (!plugin.getGameManager().isRunner(p)) {
                 plugin.getCompassManager().giveCompass(p);
             }
 
-            // --- RESPAWN LOCATION LOGIK ---
             Location bedSpawn = p.getBedSpawnLocation();
             World gameWorld = plugin.getWorldManager().getGameWorld();
 
-            // Wenn Bett existiert UND in der Game-Welt liegt -> Bett nutzen
             if (bedSpawn != null && bedSpawn.getWorld().getName().startsWith(gameWorld.getName())) {
                 e.setRespawnLocation(bedSpawn);
             } else {
-                // Sonst immer Weltspawn der Spielwelt (NIEMALS Lobby)
-                e.setRespawnLocation(gameWorld.getSpawnLocation());
+                Location spawn = gameWorld.getSpawnLocation();
+                spawn.setY(gameWorld.getHighestBlockYAt(spawn) + 1);
+                e.setRespawnLocation(spawn);
             }
         }
     }
-
-    // --- COMPASS INTERAKTION ---
 
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
         if (!plugin.getGameManager().isGameRunning()) return;
 
-        // GUI öffnen bei Rechtsklick mit Kompass
         if ((e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK)) {
             if (e.getItem() != null && e.getItem().getType() == Material.COMPASS) {
-                // Nur Hunter
                 if (!plugin.getGameManager().isRunner(e.getPlayer())) {
                     plugin.getCompassManager().openTrackerGUI(e.getPlayer());
-                    e.setCancelled(true); // Verhindert Animation
+                    e.setCancelled(true);
                 }
             }
         }
 
-        // Bedbomb Check
         if (e.getAction() == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null) {
             Material type = e.getClickedBlock().getType();
             if (type.name().contains("_BED")) {
@@ -161,7 +139,6 @@ public class GameListener implements Listener {
         }
     }
 
-    // --- DRACHE ---
     @EventHandler
     public void onDragonDeath(EntityDeathEvent e) {
         if (!plugin.getGameManager().isGameRunning()) return;

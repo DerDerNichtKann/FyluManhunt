@@ -49,10 +49,9 @@ public class WorldManager {
             File backupDir = new File(plugin.getDataFolder(), "backups");
             if (backupDir.exists()) deleteFolder(backupDir);
 
-            // Spieler Reset + Items geben
             for(Player p : Bukkit.getOnlinePlayers()) {
                 PlayerStateManager.resetPlayerFull(p);
-                LobbyListener.giveLobbyItems(p); // Items neu vergeben
+                LobbyListener.giveLobbyItems(p);
             }
 
             long seed;
@@ -78,14 +77,12 @@ public class WorldManager {
         plugin.getGameManager().setPaused(true);
         sender.sendMessage(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
 
-        // 1. Welten SYNCHRON speichern (verhindert AsyncCatcher Fehler)
         Bukkit.getScheduler().runTask(plugin, () -> {
             try {
                 for(World w : Bukkit.getWorlds()) {
                     w.save();
                 }
 
-                // 2. Dateien ASYNCHRON kopieren
                 Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                     try {
                         File backupDir = new File(plugin.getDataFolder(), "backups/" + slotName);
@@ -95,7 +92,6 @@ public class WorldManager {
                         copyWorldFolder(NETHER_WORLD, backupDir);
                         copyWorldFolder(END_WORLD, backupDir);
 
-                        // 3. Abschluss wieder Synchron
                         Bukkit.getScheduler().runTask(plugin, () -> {
                             PlayerStateManager.savePlayerStates(new File(backupDir, "playerdata.yml"));
 
@@ -170,8 +166,12 @@ public class WorldManager {
 
                         setupGameRules();
 
+                        setAdvancementRule(false);
+
                         PlayerStateManager.loadPlayerStates(new File(backupDir, "playerdata.yml"));
                         plugin.getGameManager().tryRestoreGame();
+
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> setAdvancementRule(true), 20L);
 
                         sender.sendMessage(ChatColor.GREEN + "Backup geladen! Nutze /unpause um weiterzumachen.");
                     });
@@ -182,6 +182,13 @@ public class WorldManager {
                 }
             });
         }, 20L);
+    }
+
+    private void setAdvancementRule(boolean state) {
+        for(String s : new String[]{GAME_WORLD, NETHER_WORLD, END_WORLD}) {
+            World w = Bukkit.getWorld(s);
+            if(w != null) w.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, state);
+        }
     }
 
     private void deleteFolder(File folder) {

@@ -45,7 +45,7 @@ public class CommandManhunt implements CommandExecutor {
             if (!sender.hasPermission("manhunt.timer")) return true;
             if (args.length == 1) {
                 boolean state = args[0].equalsIgnoreCase("on");
-                sender.sendMessage(ChatColor.YELLOW + "Timer Sichtbarkeit: " + state + " (Funktion muss im GameManager implementiert sein)");
+                sender.sendMessage(ChatColor.YELLOW + "Timer Sichtbarkeit: " + state);
             }
             return true;
         }

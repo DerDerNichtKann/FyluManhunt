@@ -94,10 +94,13 @@ public class GameManager {
             PlayerStateManager.resetPlayerFull(p);
         }
 
+        Location spawn = gw.getSpawnLocation();
+        spawn.setY(gw.getHighestBlockYAt(spawn) + 1);
+
         for (UUID uuid : runners) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) {
-                p.teleport(gw.getSpawnLocation());
+                p.teleport(spawn);
             }
         }
 
@@ -110,7 +113,7 @@ public class GameManager {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (!isRunner(p)) {
-                    p.teleport(gw.getSpawnLocation());
+                    p.teleport(spawn);
                     p.sendMessage(ChatColor.RED + "JAGD DIE RUNNER!");
                     plugin.getCompassManager().giveCompass(p);
                 }
@@ -123,7 +126,6 @@ public class GameManager {
         if (aliveRunners.contains(p.getUniqueId())) {
             aliveRunners.remove(p.getUniqueId());
             p.setGameMode(GameMode.SPECTATOR);
-            Bukkit.broadcastMessage(ChatColor.RED + p.getName() + " ist gestorben!");
             checkWinConditions();
         }
     }
@@ -141,7 +143,6 @@ public class GameManager {
 
     private void finishGame() {
         stopGame();
-        // KEIN Sound, KEIN Title, KEIN Chat - wie gewünscht
     }
 
     public void startAutoSave() {
