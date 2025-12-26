@@ -68,6 +68,7 @@ public class WorldManager {
             createWorld(END_WORLD, World.Environment.THE_END, seed);
 
             setupGameRules();
+            plugin.getGameManager().setActivatorDisabled(plugin.getGameManager().isActivatorDisabled());
 
             Bukkit.broadcastMessage(ChatColor.GREEN + "Welt Reset fertig! Seed: " + seed);
         }, 20L);
@@ -77,52 +78,51 @@ public class WorldManager {
         plugin.getGameManager().setPaused(true);
         sender.sendMessage(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            try {
-                for(World w : Bukkit.getWorlds()) {
-                    w.save();
+        for(World w : Bukkit.getWorlds()) {
+            w.save();
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    File backupDir = new File(plugin.getDataFolder(), "backups/" + slotName);
+                    if (!backupDir.exists()) backupDir.mkdirs();
+
+                    copyWorldFolder(GAME_WORLD, backupDir);
+                    copyWorldFolder(NETHER_WORLD, backupDir);
+                    copyWorldFolder(END_WORLD, backupDir);
+
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        PlayerStateManager.savePlayerStates(new File(backupDir, "playerdata.yml"));
+
+                        plugin.getGameManager().saveCrashRecoveryFile();
+                        File crashFile = new File(plugin.getDataFolder(), "crash_recovery.yml");
+                        if(crashFile.exists()) {
+                            try {
+                                Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                            } catch(IOException e) { e.printStackTrace(); }
+                        }
+                        sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich gespeichert!");
+                    });
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    sender.sendMessage(ChatColor.RED + "Fehler beim Kopieren der Dateien: " + e.getMessage());
                 }
-
-                Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                    try {
-                        File backupDir = new File(plugin.getDataFolder(), "backups/" + slotName);
-                        if (!backupDir.exists()) backupDir.mkdirs();
-
-                        copyWorldFolder(GAME_WORLD, backupDir);
-                        copyWorldFolder(NETHER_WORLD, backupDir);
-                        copyWorldFolder(END_WORLD, backupDir);
-
-                        Bukkit.getScheduler().runTask(plugin, () -> {
-                            PlayerStateManager.savePlayerStates(new File(backupDir, "playerdata.yml"));
-
-                            plugin.getGameManager().saveCrashRecoveryFile();
-                            File crashFile = new File(plugin.getDataFolder(), "crash_recovery.yml");
-                            if(crashFile.exists()) {
-                                try {
-                                    Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
-                                } catch(IOException e) { e.printStackTrace(); }
-                            }
-                            sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich gespeichert!");
-                        });
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        sender.sendMessage(ChatColor.RED + "Fehler beim Kopieren der Dateien: " + e.getMessage());
-                    }
-                });
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                sender.sendMessage(ChatColor.RED + "Fehler beim Speichern der Welten: " + e.getMessage());
-            }
-        });
+            });
+        }, 40L);
     }
 
     public void disableActivatorRules() {
+        applyActivatorRules(true);
+    }
+
+    public void applyActivatorRules(boolean disabled) {
+        boolean announce = !disabled;
         for (String s : new String[]{GAME_WORLD, NETHER_WORLD, END_WORLD}) {
             org.bukkit.World w = org.bukkit.Bukkit.getWorld(s);
             if (w != null) {
-                w.setGameRule(org.bukkit.GameRule.ANNOUNCE_ADVANCEMENTS, false);
+                w.setGameRule(org.bukkit.GameRule.ANNOUNCE_ADVANCEMENTS, announce);
                 w.setGameRule(org.bukkit.GameRule.SEND_COMMAND_FEEDBACK, false);
                 w.setGameRule(org.bukkit.GameRule.REDUCED_DEBUG_INFO, true);
             }
@@ -165,13 +165,14 @@ public class WorldManager {
                         new WorldCreator(END_WORLD).environment(World.Environment.THE_END).createWorld();
 
                         setupGameRules();
+                        plugin.getGameManager().setActivatorDisabled(plugin.getGameManager().isActivatorDisabled());
 
                         setAdvancementRule(false);
 
                         PlayerStateManager.loadPlayerStates(new File(backupDir, "playerdata.yml"));
                         plugin.getGameManager().tryRestoreGame();
 
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> setAdvancementRule(true), 20L);
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> setAdvancementRule(!plugin.getGameManager().isActivatorDisabled()), 20L);
 
                         sender.sendMessage(ChatColor.GREEN + "Backup geladen! Nutze /unpause um weiterzumachen.");
                     });

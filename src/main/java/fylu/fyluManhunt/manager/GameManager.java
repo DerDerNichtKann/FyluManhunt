@@ -25,6 +25,7 @@ public class GameManager {
     private boolean timerVisible = true;
     private boolean bedbombNether = true;
     private boolean bedbombEnd = true;
+    private boolean activatorDisabled = true;
     private int headStartSeconds = 60;
     private Difficulty difficulty = Difficulty.NORMAL;
 
@@ -79,6 +80,8 @@ public class GameManager {
         gameTime = 0;
         aliveRunners.clear();
         aliveRunners.addAll(runners);
+
+        plugin.getWorldManager().applyActivatorRules(activatorDisabled);
 
         World gw = plugin.getWorldManager().getGameWorld();
         gw.setTime(1000);
@@ -164,6 +167,7 @@ public class GameManager {
         cfg.set("settings.headstart", headStartSeconds);
         cfg.set("settings.bedbomb.nether", bedbombNether);
         cfg.set("settings.bedbomb.end", bedbombEnd);
+        cfg.set("settings.activator", activatorDisabled);
         cfg.set("settings.difficulty", difficulty.name());
 
         try { cfg.save(file); } catch (Exception e) { e.printStackTrace(); }
@@ -184,6 +188,7 @@ public class GameManager {
         this.headStartSeconds = cfg.getInt("settings.headstart");
         this.bedbombNether = cfg.getBoolean("settings.bedbomb.nether");
         this.bedbombEnd = cfg.getBoolean("settings.bedbomb.end");
+        this.activatorDisabled = cfg.getBoolean("settings.activator", true);
         try { this.difficulty = Difficulty.valueOf(cfg.getString("settings.difficulty", "NORMAL")); } catch (Exception e) {}
 
         this.runners.clear();
@@ -191,6 +196,7 @@ public class GameManager {
         this.aliveRunners.clear();
         for(String s : cfg.getStringList("game.alive")) this.aliveRunners.add(UUID.fromString(s));
 
+        plugin.getWorldManager().applyActivatorRules(activatorDisabled);
         PlayerStateManager.loadPlayerStates(file);
 
         plugin.getScoreboardManager().startHeartTask();
@@ -198,7 +204,7 @@ public class GameManager {
         startAutoSave();
 
         Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "SERVER CRASH ERKANNT! Spielstand wiederhergestellt.");
-        Bukkit.broadcastMessage(ChatColor.YELLOW + "Das Spiel ist PAUSIERT. Nutze /unpause zum Fortsetzen.");
+        Bukkit.broadcastMessage(ChatColor.YELLOW + "Das Spiel ist PAUSIERT. Nutze /game unpause zum Fortsetzen.");
     }
 
     public void deleteCrashFile() {
@@ -226,6 +232,12 @@ public class GameManager {
     public void toggleTimerVisibility() { this.timerVisible = !this.timerVisible; }
     public boolean isTimerVisible() { return timerVisible; }
 
+    public boolean isActivatorDisabled() { return activatorDisabled; }
+    public void setActivatorDisabled(boolean disabled) {
+        this.activatorDisabled = disabled;
+        plugin.getWorldManager().applyActivatorRules(disabled);
+    }
+
     public void stopGame() {
         isRunning = false;
         if (timerTask != null) timerTask.cancel();
@@ -235,15 +247,19 @@ public class GameManager {
         plugin.getScoreboardManager().clearTeams();
     }
 
-    public void setPaused(boolean paused) {
-        this.isPaused = paused;
-        if (paused) {
+    public void togglePause() {
+        this.isPaused = !this.isPaused;
+        if (isPaused) {
             Bukkit.broadcastMessage(ChatColor.GOLD + "Spiel pausiert!");
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick freeze");
         } else {
             Bukkit.broadcastMessage(ChatColor.GREEN + "Spiel läuft weiter!");
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
         }
+    }
+
+    public void setPaused(boolean paused) {
+        if (this.isPaused != paused) togglePause();
     }
 
     public boolean isGameRunning() { return isRunning; }

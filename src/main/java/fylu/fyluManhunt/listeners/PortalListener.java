@@ -1,6 +1,7 @@
 package fylu.fyluManhunt.listeners;
 
 import fylu.fyluManhunt.FyluManhunt;
+import fylu.fyluManhunt.manager.WorldManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -27,7 +28,6 @@ public class PortalListener implements Listener {
 
         Player p = e.getPlayer();
         World fromWorld = e.getFrom().getWorld();
-        String gameWorldName = "manhunt_game";
 
         if (fromWorld.getName().equals("world")) return;
 
@@ -36,37 +36,28 @@ public class PortalListener implements Listener {
         }
 
         Location toLocation = null;
+        World nether = Bukkit.getWorld(WorldManager.NETHER_WORLD);
+        World overworld = Bukkit.getWorld(WorldManager.GAME_WORLD);
+        World end = Bukkit.getWorld(WorldManager.END_WORLD);
 
         if (e.getCause() == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL) {
-            if (fromWorld.getEnvironment() == World.Environment.NORMAL) {
-                World nether = Bukkit.getWorld(gameWorldName + "_nether");
-                if (nether != null) {
-                    double x = e.getFrom().getX() / 8.0;
-                    double z = e.getFrom().getZ() / 8.0;
-                    toLocation = new Location(nether, x, e.getFrom().getY(), z);
-                }
-            } else if (fromWorld.getEnvironment() == World.Environment.NETHER) {
-                World overworld = Bukkit.getWorld(gameWorldName);
-                if (overworld != null) {
-                    double x = e.getFrom().getX() * 8.0;
-                    double z = e.getFrom().getZ() * 8.0;
-                    toLocation = new Location(overworld, x, e.getFrom().getY(), z);
-                }
+            if (fromWorld.getEnvironment() == World.Environment.NORMAL && nether != null) {
+                double x = e.getFrom().getX() / 8.0;
+                double z = e.getFrom().getZ() / 8.0;
+                toLocation = new Location(nether, x, e.getFrom().getY(), z);
+            } else if (fromWorld.getEnvironment() == World.Environment.NETHER && overworld != null) {
+                double x = e.getFrom().getX() * 8.0;
+                double z = e.getFrom().getZ() * 8.0;
+                toLocation = new Location(overworld, x, e.getFrom().getY(), z);
             }
         }
 
         if (e.getCause() == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
-            if (fromWorld.getEnvironment() == World.Environment.NORMAL) {
-                World end = Bukkit.getWorld(gameWorldName + "_the_end");
-                if (end != null) {
-                    toLocation = new Location(end, 100, 49, 0);
-                    createEndPlatform(toLocation);
-                }
-            } else if (fromWorld.getEnvironment() == World.Environment.THE_END) {
-                World overworld = Bukkit.getWorld(gameWorldName);
-                if (overworld != null) {
-                    toLocation = overworld.getSpawnLocation();
-                }
+            if (fromWorld.getEnvironment() == World.Environment.NORMAL && end != null) {
+                toLocation = new Location(end, 100, 49, 0);
+                createEndPlatform(toLocation);
+            } else if (fromWorld.getEnvironment() == World.Environment.THE_END && overworld != null) {
+                toLocation = overworld.getSpawnLocation();
             }
         }
 
@@ -82,25 +73,19 @@ public class PortalListener implements Listener {
         if (!(e.getEntity() instanceof EnderPearl)) return;
 
         World fromWorld = e.getFrom().getWorld();
-        String gameWorldName = "manhunt_game";
         Location toLocation = null;
+        World nether = Bukkit.getWorld(WorldManager.NETHER_WORLD);
+        World overworld = Bukkit.getWorld(WorldManager.GAME_WORLD);
+        World end = Bukkit.getWorld(WorldManager.END_WORLD);
 
-        if (fromWorld.getName().equals(gameWorldName)) {
-            World nether = Bukkit.getWorld(gameWorldName + "_nether");
-            if (nether != null) {
-                toLocation = new Location(nether, e.getFrom().getX() / 8, e.getFrom().getY(), e.getFrom().getZ() / 8);
-            }
-        } else if (fromWorld.getName().equals(gameWorldName + "_nether")) {
-            World overworld = Bukkit.getWorld(gameWorldName);
-            if (overworld != null) {
-                toLocation = new Location(overworld, e.getFrom().getX() * 8, e.getFrom().getY(), e.getFrom().getZ() * 8);
-            }
+        if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && nether != null) {
+            toLocation = new Location(nether, e.getFrom().getX() / 8, e.getFrom().getY(), e.getFrom().getZ() / 8);
+        } else if (fromWorld.getName().equals(WorldManager.NETHER_WORLD) && overworld != null) {
+            toLocation = new Location(overworld, e.getFrom().getX() * 8, e.getFrom().getY(), e.getFrom().getZ() * 8);
         }
 
-
-        if (fromWorld.getName().equals(gameWorldName) && e.getEntity().getLocation().getBlock().getType() == Material.END_PORTAL) {
-            World end = Bukkit.getWorld(gameWorldName + "_the_end");
-            if (end != null) toLocation = new Location(end, 100, 50, 0);
+        if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && e.getEntity().getLocation().getBlock().getType() == Material.END_PORTAL && end != null) {
+            toLocation = new Location(end, 100, 50, 0);
         }
 
         if (toLocation != null) {

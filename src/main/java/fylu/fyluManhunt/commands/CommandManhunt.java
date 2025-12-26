@@ -45,7 +45,8 @@ public class CommandManhunt implements CommandExecutor {
             if (!sender.hasPermission("manhunt.timer")) return true;
             if (args.length == 1) {
                 boolean state = args[0].equalsIgnoreCase("on");
-                sender.sendMessage(ChatColor.YELLOW + "Timer Sichtbarkeit: " + state);
+                plugin.getGameManager().toggleTimerVisibility();
+                sender.sendMessage(ChatColor.YELLOW + "Timer Sichtbarkeit umgeschaltet.");
             }
             return true;
         }
@@ -53,13 +54,7 @@ public class CommandManhunt implements CommandExecutor {
         if (label.equalsIgnoreCase("tabhearts")) {
             if (!sender.hasPermission("manhunt.hearts")) return true;
             if (args.length == 1) {
-                if (args[0].equalsIgnoreCase("on")) {
-                    plugin.getScoreboardManager().setShowHearts(true);
-                    sender.sendMessage(ChatColor.GREEN + "Tab-Herzen aktiviert.");
-                } else if (args[0].equalsIgnoreCase("off")) {
-                    plugin.getScoreboardManager().setShowHearts(false);
-                    sender.sendMessage(ChatColor.RED + "Tab-Herzen deaktiviert.");
-                }
+                sender.sendMessage(ChatColor.YELLOW + "Tab-Herzen werden über TAB-Config gesteuert.");
             }
             return true;
         }
@@ -68,10 +63,8 @@ public class CommandManhunt implements CommandExecutor {
             if (!sender.hasPermission("manhunt.activator")) return true;
             if (args.length == 1) {
                 boolean off = args[0].equalsIgnoreCase("off");
+                plugin.getGameManager().setActivatorDisabled(off);
                 sender.sendMessage(ChatColor.YELLOW + "Activator Bar (Gamerules) update: " + (off ? "Deaktiviert" : "Aktiviert"));
-                if(off) {
-                    plugin.getWorldManager().disableActivatorRules();
-                }
             }
             return true;
         }

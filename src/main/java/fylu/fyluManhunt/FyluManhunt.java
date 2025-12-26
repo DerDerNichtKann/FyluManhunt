@@ -3,6 +3,7 @@ package fylu.fyluManhunt;
 import fylu.fyluManhunt.commands.*;
 import fylu.fyluManhunt.listeners.*;
 import fylu.fyluManhunt.manager.*;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FyluManhunt extends JavaPlugin {
@@ -21,6 +22,10 @@ public class FyluManhunt extends JavaPlugin {
         this.compassManager = new CompassManager(this);
         this.scoreboardManager = new ScoreboardManager(this);
         this.gameManager = new GameManager(this);
+
+        if(Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new ManhuntExpansion(this).register();
+        }
 
         CommandGame cmdGame = new CommandGame(this);
         getCommand("game").setExecutor(cmdGame);
