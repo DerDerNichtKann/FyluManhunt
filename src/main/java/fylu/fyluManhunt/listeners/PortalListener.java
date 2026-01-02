@@ -41,11 +41,13 @@ public class PortalListener implements Listener {
         World end = Bukkit.getWorld(WorldManager.END_WORLD);
 
         if (e.getCause() == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL) {
-            if (fromWorld.getEnvironment() == World.Environment.NORMAL && nether != null) {
+
+            if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && nether != null) {
                 double x = e.getFrom().getX() / 8.0;
                 double z = e.getFrom().getZ() / 8.0;
                 toLocation = new Location(nether, x, e.getFrom().getY(), z);
-            } else if (fromWorld.getEnvironment() == World.Environment.NETHER && overworld != null) {
+            }
+            else if (fromWorld.getName().equals(WorldManager.NETHER_WORLD) && overworld != null) {
                 double x = e.getFrom().getX() * 8.0;
                 double z = e.getFrom().getZ() * 8.0;
                 toLocation = new Location(overworld, x, e.getFrom().getY(), z);
@@ -53,10 +55,11 @@ public class PortalListener implements Listener {
         }
 
         if (e.getCause() == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
-            if (fromWorld.getEnvironment() == World.Environment.NORMAL && end != null) {
+            if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && end != null) {
                 toLocation = new Location(end, 100, 49, 0);
                 createEndPlatform(toLocation);
-            } else if (fromWorld.getEnvironment() == World.Environment.THE_END && overworld != null) {
+            }
+            else if (fromWorld.getName().equals(WorldManager.END_WORLD) && overworld != null) {
                 toLocation = overworld.getSpawnLocation();
             }
         }

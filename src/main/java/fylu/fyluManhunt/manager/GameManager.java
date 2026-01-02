@@ -25,7 +25,9 @@ public class GameManager {
     private boolean timerVisible = true;
     private boolean bedbombNether = true;
     private boolean bedbombEnd = true;
-    private boolean activatorDisabled = true;
+
+    private boolean activatorDisabled = false;
+
     private int headStartSeconds = 60;
     private Difficulty difficulty = Difficulty.NORMAL;
 
@@ -188,7 +190,7 @@ public class GameManager {
         this.headStartSeconds = cfg.getInt("settings.headstart");
         this.bedbombNether = cfg.getBoolean("settings.bedbomb.nether");
         this.bedbombEnd = cfg.getBoolean("settings.bedbomb.end");
-        this.activatorDisabled = cfg.getBoolean("settings.activator", true);
+        this.activatorDisabled = cfg.getBoolean("settings.activator", false);
         try { this.difficulty = Difficulty.valueOf(cfg.getString("settings.difficulty", "NORMAL")); } catch (Exception e) {}
 
         this.runners.clear();

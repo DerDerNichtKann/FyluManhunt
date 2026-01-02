@@ -29,14 +29,14 @@ public class ScoreboardManager {
         if (teamRunners == null) teamRunners = board.registerNewTeam("MH_Runners");
         teamRunners.setColor(ChatColor.WHITE);
         teamRunners.setPrefix("");
-        teamRunners.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+        teamRunners.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
         teamRunners.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
 
         teamHunters = board.getTeam("MH_Hunters");
         if (teamHunters == null) teamHunters = board.registerNewTeam("MH_Hunters");
         teamHunters.setColor(ChatColor.WHITE);
         teamHunters.setPrefix("");
-        teamHunters.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+        teamHunters.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
         teamHunters.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
     }
 
