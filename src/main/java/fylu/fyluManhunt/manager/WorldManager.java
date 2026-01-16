@@ -80,9 +80,6 @@ public class WorldManager {
     }
 
     public void saveGame(String slotName, CommandSender sender) {
-        plugin.getGameManager().setPaused(true);
-        sender.sendMessage(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
-
         for(World w : Bukkit.getWorlds()) {
             w.save();
         }
@@ -112,6 +109,7 @@ public class WorldManager {
                                 Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
                             } catch(IOException e) { e.printStackTrace(); }
                         }
+                        sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich erstellt.");
                     });
 
                 } catch (Exception e) {
@@ -177,6 +175,8 @@ public class WorldManager {
 
                         PlayerStateManager.loadPlayerStates(new File(backupDir, "playerdata.yml"));
                         plugin.getGameManager().tryRestoreGame(false);
+
+                        sender.sendMessage(ChatColor.GREEN + "Spielstand '" + slotName + "' geladen!");
                     });
 
                 } catch (Exception e) {

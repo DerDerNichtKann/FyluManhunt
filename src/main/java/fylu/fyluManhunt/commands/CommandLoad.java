@@ -12,41 +12,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class CommandSaveLoad implements CommandExecutor, TabCompleter {
+public class CommandLoad implements CommandExecutor, TabCompleter {
 
     private final FyluManhunt plugin;
 
-    public CommandSaveLoad(FyluManhunt plugin) {
+    public CommandLoad(FyluManhunt plugin) {
         this.plugin = plugin;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("manhunt.save")) return true;
+        if (!sender.hasPermission("manhunt.load")) return true;
 
-        if (args.length < 2) {
-            sender.sendMessage(ChatColor.RED + "Usage: /save <new|load> <name>");
+        if (args.length != 1) {
+            sender.sendMessage(ChatColor.RED + "Benutzung: /load <name>");
             return true;
         }
 
-        String action = args[0];
-        String name = args[1];
-
-        if (action.equalsIgnoreCase("new")) {
-            plugin.getWorldManager().saveGame(name, sender);
-        } else if (action.equalsIgnoreCase("load")) {
-            plugin.getWorldManager().loadGame(name, sender);
-        } else {
-            sender.sendMessage(ChatColor.RED + "Unbekannte Aktion. Nutze 'new' oder 'load'.");
-        }
-
+        String name = args[0];
+        plugin.getWorldManager().loadGame(name, sender);
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return Arrays.asList("new", "load");
-        if (args.length == 2 && args[0].equalsIgnoreCase("load")) {
+        if (args.length == 1) {
             File backupDir = new File(plugin.getDataFolder(), "backups");
             if (!backupDir.exists() || !backupDir.isDirectory()) return new ArrayList<>();
             String[] files = backupDir.list();

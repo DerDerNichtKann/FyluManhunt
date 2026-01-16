@@ -27,11 +27,8 @@ public class FyluManhunt extends JavaPlugin {
             new ManhuntExpansion(this).register();
         }
 
-        CommandGame cmdGame = new CommandGame(this);
-        getCommand("game").setExecutor(cmdGame);
-        getCommand("pause").setExecutor(cmdGame);
-        getCommand("unpause").setExecutor(cmdGame);
-        getCommand("vorsprung").setExecutor(cmdGame);
+        // Commands registrieren
+        getCommand("game").setExecutor(new CommandGame(this));
 
         CommandManhunt cmdManhunt = new CommandManhunt(this);
         getCommand("manhuntstart").setExecutor(cmdManhunt);
@@ -45,9 +42,11 @@ public class FyluManhunt extends JavaPlugin {
         getCommand("bedbomb").setExecutor(cmdTools);
         getCommand("setseed").setExecutor(cmdTools);
 
-        CommandSaveLoad cmdSaveLoad = new CommandSaveLoad(this);
-        getCommand("save").setExecutor(cmdSaveLoad);
-        getCommand("save").setTabCompleter(cmdSaveLoad);
+        getCommand("save").setExecutor(new CommandSave(this));
+        CommandLoad cmdLoad = new CommandLoad(this);
+        getCommand("load").setExecutor(cmdLoad);
+        getCommand("load").setTabCompleter(cmdLoad);
+
         getCommand("worldreset").setExecutor(new CommandWorldReset(this));
         getCommand("worldclear").setExecutor(new CommandWorldReset(this));
 

@@ -4,9 +4,11 @@ import fylu.fyluManhunt.FyluManhunt;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Statistic;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.advancement.AdvancementProgress;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -29,7 +31,14 @@ public class PlayerStateManager {
         p.setGameMode(GameMode.SURVIVAL);
         p.getActivePotionEffects().forEach(eff -> p.removePotionEffect(eff.getType()));
 
-        resetAdvancements(p);
+        Iterator<Advancement> iterator = Bukkit.getServer().advancementIterator();
+        while (iterator.hasNext()) {
+            Advancement progress = iterator.next();
+            AdvancementProgress pProgress = p.getAdvancementProgress(progress);
+            for (String criteria : pProgress.getAwardedCriteria()) {
+                pProgress.revokeCriteria(criteria);
+            }
+        }
 
         for (Statistic stat : Statistic.values()) {
             try {
@@ -48,26 +57,6 @@ public class PlayerStateManager {
         }
     }
 
-    public static void resetAdvancements(Player player) {
-        Bukkit.getScheduler().runTask(FyluManhunt.getInstance(), () -> {
-            for (Advancement advancement : getAllAdvancement()) {
-                AdvancementProgress progress = player.getAdvancementProgress(advancement);
-                for (String criteria : progress.getAwardedCriteria()) {
-                    progress.revokeCriteria(criteria);
-                }
-            }
-        });
-    }
-
-    public static List<Advancement> getAllAdvancement() {
-        List<Advancement> advancements = new ArrayList<>();
-        for (@NotNull Iterator<Advancement> it = Bukkit.advancementIterator(); it.hasNext(); ) {
-            advancements.add(it.next());
-        }
-        advancements.removeIf(advancement -> advancement.getDisplay() == null);
-        return advancements;
-    }
-
     public static void savePlayerStates(File saveFile) {
         YamlConfiguration cfg = new YamlConfiguration();
 
@@ -83,17 +72,42 @@ public class PlayerStateManager {
             cfg.set(path + ".exp", p.getExp());
             cfg.set(path + ".level", p.getLevel());
 
-            List<String> doneAdvancements = new ArrayList<>();
-            for (Advancement adv : getAllAdvancement()) {
-                if (p.getAdvancementProgress(adv).isDone()) {
-                    doneAdvancements.add(adv.getKey().toString());
+            List<String> awardedCriteria = new ArrayList<>();
+            Iterator<Advancement> it = Bukkit.getServer().advancementIterator();
+            while (it.hasNext()) {
+                Advancement adv = it.next();
+                AdvancementProgress prog = p.getAdvancementProgress(adv);
+                for (String c : prog.getAwardedCriteria()) {
+                    awardedCriteria.add(adv.getKey().toString() + ";" + c);
                 }
             }
-            cfg.set(path + ".advancements", doneAdvancements);
+            cfg.set(path + ".advancements_criteria", awardedCriteria);
 
-            cfg.set(path + ".stats.deaths", p.getStatistic(Statistic.DEATHS));
-            cfg.set(path + ".stats.player_kills", p.getStatistic(Statistic.PLAYER_KILLS));
-            cfg.set(path + ".stats.mob_kills", p.getStatistic(Statistic.MOB_KILLS));
+            for (Statistic stat : Statistic.values()) {
+                try {
+                    if (stat.getType() == Statistic.Type.UNTYPED) {
+                        int val = p.getStatistic(stat);
+                        if (val > 0) cfg.set(path + ".stats.generic." + stat.name(), val);
+                    }
+                    else if (stat.getType() == Statistic.Type.ENTITY) {
+                        for (EntityType type : EntityType.values()) {
+                            if (type == EntityType.UNKNOWN) continue;
+                            try {
+                                int val = p.getStatistic(stat, type);
+                                if (val > 0) cfg.set(path + ".stats.entity." + stat.name() + "." + type.name(), val);
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                    else if (stat.getType() == Statistic.Type.ITEM || stat.getType() == Statistic.Type.BLOCK) {
+                        for (Material mat : Material.values()) {
+                            try {
+                                int val = p.getStatistic(stat, mat);
+                                if (val > 0) cfg.set(path + ".stats.mat." + stat.name() + "." + mat.name(), val);
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
         }
 
         try { cfg.save(saveFile); } catch (IOException e) { e.printStackTrace(); }
@@ -105,12 +119,9 @@ public class PlayerStateManager {
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             String path = p.getUniqueId().toString();
-            if (!cfg.contains(path)) {
-                resetPlayerFull(p);
-                continue;
-            }
-
             resetPlayerFull(p);
+
+            if (!cfg.contains(path)) continue;
 
             try {
                 p.teleport(cfg.getLocation(path + ".loc"));
@@ -127,18 +138,52 @@ public class PlayerStateManager {
                 p.setExp((float) cfg.getDouble(path + ".exp"));
                 p.setLevel(cfg.getInt(path + ".level"));
 
-                List<String> advKeys = cfg.getStringList(path + ".advancements");
-                for (String key : advKeys) {
-                    Advancement adv = Bukkit.getAdvancement(org.bukkit.NamespacedKey.fromString(key));
-                    if (adv != null) {
-                        AdvancementProgress prog = p.getAdvancementProgress(adv);
-                        for(String c : prog.getRemainingCriteria()) prog.awardCriteria(c);
-                    }
+                List<String> criteriaList = cfg.getStringList(path + ".advancements_criteria");
+                for (String entry : criteriaList) {
+                    try {
+                        String[] parts = entry.split(";");
+                        if (parts.length == 2) {
+                            NamespacedKey key = NamespacedKey.fromString(parts[0]);
+                            if (key != null) {
+                                Advancement adv = Bukkit.getAdvancement(key);
+                                if (adv != null) {
+                                    p.getAdvancementProgress(adv).awardCriteria(parts[1]);
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
                 }
 
-                p.setStatistic(Statistic.DEATHS, cfg.getInt(path + ".stats.deaths"));
-                p.setStatistic(Statistic.PLAYER_KILLS, cfg.getInt(path + ".stats.player_kills"));
-                p.setStatistic(Statistic.MOB_KILLS, cfg.getInt(path + ".stats.mob_kills"));
+                if (cfg.isConfigurationSection(path + ".stats.generic")) {
+                    ConfigurationSection sec = cfg.getConfigurationSection(path + ".stats.generic");
+                    for (String key : sec.getKeys(false)) {
+                        try {
+                            p.setStatistic(Statistic.valueOf(key), sec.getInt(key));
+                        } catch (Exception ignored) {}
+                    }
+                }
+                if (cfg.isConfigurationSection(path + ".stats.entity")) {
+                    ConfigurationSection secMain = cfg.getConfigurationSection(path + ".stats.entity");
+                    for (String statKey : secMain.getKeys(false)) {
+                        ConfigurationSection secType = secMain.getConfigurationSection(statKey);
+                        for (String typeKey : secType.getKeys(false)) {
+                            try {
+                                p.setStatistic(Statistic.valueOf(statKey), EntityType.valueOf(typeKey), secType.getInt(typeKey));
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+                if (cfg.isConfigurationSection(path + ".stats.mat")) {
+                    ConfigurationSection secMain = cfg.getConfigurationSection(path + ".stats.mat");
+                    for (String statKey : secMain.getKeys(false)) {
+                        ConfigurationSection secMat = secMain.getConfigurationSection(statKey);
+                        for (String matKey : secMat.getKeys(false)) {
+                            try {
+                                p.setStatistic(Statistic.valueOf(statKey), Material.valueOf(matKey), secMat.getInt(matKey));
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
 
             } catch (Exception e) {
                 e.printStackTrace();

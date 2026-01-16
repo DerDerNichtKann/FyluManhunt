@@ -13,9 +13,13 @@ commands:
     permission: manhunt.reset
     usage: /worldreset [seed]
   save:
-    description: Speichert oder lädt einen Spielstand (Backups)
+    description: Speichert den Spielstand
+    usage: /save <name>
     permission: manhunt.save
-    usage: /save <new|load> <name>
+  load:
+    description: Lädt einen Spielstand
+    usage: /load <name>
+    permission: manhunt.load
 
   # --- Einstellungen & Runner ---
   secondrunner:
