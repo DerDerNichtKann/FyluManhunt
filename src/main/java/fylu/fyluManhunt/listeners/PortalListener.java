@@ -13,6 +13,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.util.Vector;
 
 public class PortalListener implements Listener {
 
@@ -41,7 +42,6 @@ public class PortalListener implements Listener {
         World end = Bukkit.getWorld(WorldManager.END_WORLD);
 
         if (e.getCause() == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL) {
-
             if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && nether != null) {
                 double x = e.getFrom().getX() / 8.0;
                 double z = e.getFrom().getZ() / 8.0;
@@ -56,8 +56,12 @@ public class PortalListener implements Listener {
 
         if (e.getCause() == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
             if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && end != null) {
-                toLocation = new Location(end, 100, 49, 0);
+                toLocation = new Location(end, 100.5, 49, 0.5, 90, 0);
                 createEndPlatform(toLocation);
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    p.setVelocity(new Vector(0, 0, 0));
+                    p.setFallDistance(0);
+                }, 1L);
             }
             else if (fromWorld.getName().equals(WorldManager.END_WORLD) && overworld != null) {
                 toLocation = overworld.getSpawnLocation();
@@ -88,7 +92,7 @@ public class PortalListener implements Listener {
         }
 
         if (fromWorld.getName().equals(WorldManager.GAME_WORLD) && e.getEntity().getLocation().getBlock().getType() == Material.END_PORTAL && end != null) {
-            toLocation = new Location(end, 100, 50, 0);
+            toLocation = new Location(end, 100.5, 50, 0.5);
         }
 
         if (toLocation != null) {
@@ -97,12 +101,16 @@ public class PortalListener implements Listener {
     }
 
     private void createEndPlatform(Location loc) {
-        int y = loc.getBlockY() - 1;
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                loc.getWorld().getBlockAt(loc.getBlockX() + x, y, loc.getBlockZ() + z).setType(Material.OBSIDIAN);
-                for(int i = 1; i <= 3; i++) {
-                    loc.getWorld().getBlockAt(loc.getBlockX() + x, y + i, loc.getBlockZ() + z).setType(Material.AIR);
+        int platformY = 48;
+        int centerX = 100;
+        int centerZ = 0;
+        World world = loc.getWorld();
+        for (int x = centerX - 2; x <= centerX + 2; x++) {
+            for (int z = centerZ - 2; z <= centerZ + 2; z++) {
+                world.getBlockAt(x, platformY, z).setType(Material.OBSIDIAN);
+
+                for(int i = 1; i <= 4; i++) {
+                    world.getBlockAt(x, platformY + i, z).setType(Material.AIR);
                 }
             }
         }

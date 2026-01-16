@@ -22,6 +22,8 @@ public class WorldManager {
     public static final String NETHER_WORLD = "manhunt_game_nether";
     public static final String END_WORLD = "manhunt_game_the_end";
 
+    private static final String LOBBY_WORLD = "world";
+
     private String nextSeed = null;
 
     public WorldManager(FyluManhunt plugin) {
@@ -46,6 +48,10 @@ public class WorldManager {
             deleteFolder(new File(Bukkit.getWorldContainer(), NETHER_WORLD));
             deleteFolder(new File(Bukkit.getWorldContainer(), END_WORLD));
 
+            File mainWorld = Bukkit.getWorlds().get(0).getWorldFolder();
+            deleteFolder(new File(mainWorld, "advancements"));
+            deleteFolder(new File(mainWorld, "stats"));
+
             File backupDir = new File(plugin.getDataFolder(), "backups");
             if (backupDir.exists()) deleteFolder(backupDir);
 
@@ -67,7 +73,6 @@ public class WorldManager {
             createWorld(NETHER_WORLD, World.Environment.NETHER, seed);
             createWorld(END_WORLD, World.Environment.THE_END, seed);
 
-            setupGameRules();
             plugin.getGameManager().setActivatorDisabled(plugin.getGameManager().isActivatorDisabled());
 
             Bukkit.broadcastMessage(ChatColor.GREEN + "Welt Reset fertig! Seed: " + seed);
@@ -92,6 +97,11 @@ public class WorldManager {
                     copyWorldFolder(NETHER_WORLD, backupDir);
                     copyWorldFolder(END_WORLD, backupDir);
 
+                    File mainWorldFolder = Bukkit.getWorlds().get(0).getWorldFolder();
+
+                    copyFolderFromTo(new File(mainWorldFolder, "advancements"), new File(backupDir, "advancements_data"));
+                    copyFolderFromTo(new File(mainWorldFolder, "stats"), new File(backupDir, "stats_data"));
+
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         PlayerStateManager.savePlayerStates(new File(backupDir, "playerdata.yml"));
 
@@ -102,7 +112,6 @@ public class WorldManager {
                                 Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
                             } catch(IOException e) { e.printStackTrace(); }
                         }
-                        sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich gespeichert!");
                     });
 
                 } catch (Exception e) {
@@ -113,18 +122,13 @@ public class WorldManager {
         }, 40L);
     }
 
-    public void disableActivatorRules() {
-        applyActivatorRules(true);
-    }
-
     public void applyActivatorRules(boolean disabled) {
-        boolean announce = !disabled;
-        for (String s : new String[]{GAME_WORLD, NETHER_WORLD, END_WORLD}) {
-            org.bukkit.World w = org.bukkit.Bukkit.getWorld(s);
+        String[] worlds = {GAME_WORLD, NETHER_WORLD, END_WORLD};
+
+        for (String wName : worlds) {
+            World w = Bukkit.getWorld(wName);
             if (w != null) {
-                w.setGameRule(org.bukkit.GameRule.ANNOUNCE_ADVANCEMENTS, announce);
-                w.setGameRule(org.bukkit.GameRule.SEND_COMMAND_FEEDBACK, false);
-                w.setGameRule(org.bukkit.GameRule.REDUCED_DEBUG_INFO, true);
+                w.setGameRule(GameRule.LOCATOR_BAR, false);
             }
         }
     }
@@ -138,7 +142,6 @@ public class WorldManager {
 
         plugin.getGameManager().stopGame();
         teleportToLobbyForAll();
-        sender.sendMessage(ChatColor.YELLOW + "Lade Backup (bitte warten)...");
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             unloadWorld(GAME_WORLD);
@@ -153,6 +156,12 @@ public class WorldManager {
                     copyFolderFromBackup(new File(backupDir, GAME_WORLD), new File(Bukkit.getWorldContainer(), GAME_WORLD));
                     copyFolderFromBackup(new File(backupDir, NETHER_WORLD), new File(Bukkit.getWorldContainer(), NETHER_WORLD));
                     copyFolderFromBackup(new File(backupDir, END_WORLD), new File(Bukkit.getWorldContainer(), END_WORLD));
+                    File mainWorldFolder = Bukkit.getWorlds().get(0).getWorldFolder();
+                    deleteFolder(new File(mainWorldFolder, "advancements"));
+                    deleteFolder(new File(mainWorldFolder, "stats"));
+
+                    copyFolderFromTo(new File(backupDir, "advancements_data"), new File(mainWorldFolder, "advancements"));
+                    copyFolderFromTo(new File(backupDir, "stats_data"), new File(mainWorldFolder, "stats"));
 
                     File gameState = new File(backupDir, "gamestate.yml");
                     if (gameState.exists()) {
@@ -164,17 +173,10 @@ public class WorldManager {
                         new WorldCreator(NETHER_WORLD).environment(World.Environment.NETHER).createWorld();
                         new WorldCreator(END_WORLD).environment(World.Environment.THE_END).createWorld();
 
-                        setupGameRules();
                         plugin.getGameManager().setActivatorDisabled(plugin.getGameManager().isActivatorDisabled());
 
-                        setAdvancementRule(false);
-
                         PlayerStateManager.loadPlayerStates(new File(backupDir, "playerdata.yml"));
-                        plugin.getGameManager().tryRestoreGame();
-
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> setAdvancementRule(!plugin.getGameManager().isActivatorDisabled()), 20L);
-
-                        sender.sendMessage(ChatColor.GREEN + "Backup geladen! Nutze /unpause um weiterzumachen.");
+                        plugin.getGameManager().tryRestoreGame(false);
                     });
 
                 } catch (Exception e) {
@@ -183,13 +185,6 @@ public class WorldManager {
                 }
             });
         }, 20L);
-    }
-
-    private void setAdvancementRule(boolean state) {
-        for(String s : new String[]{GAME_WORLD, NETHER_WORLD, END_WORLD}) {
-            World w = Bukkit.getWorld(s);
-            if(w != null) w.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, state);
-        }
     }
 
     private void deleteFolder(File folder) {
@@ -212,10 +207,17 @@ public class WorldManager {
         copyFolder(source.toPath(), dest.toPath());
     }
 
+    private void copyFolderFromTo(File source, File dest) throws IOException {
+        if (!source.exists()) return;
+        copyFolder(source.toPath(), dest.toPath());
+    }
+
     private void copyFolder(Path src, Path dest) throws IOException {
         Files.walk(src).forEach(source -> {
             try {
                 if(source.getFileName().toString().equals("session.lock")) return;
+                if(source.getFileName().toString().equals("uid.dat")) return;
+
                 Path destination = dest.resolve(src.relativize(source));
                 if(Files.isDirectory(source)) {
                     if(!Files.exists(destination)) Files.createDirectory(destination);
@@ -315,16 +317,5 @@ public class WorldManager {
     private void unloadWorld(String name) {
         World w = Bukkit.getWorld(name);
         if (w != null) Bukkit.unloadWorld(w, false);
-    }
-
-    public void setupGameRules() {
-        for(String s : new String[]{GAME_WORLD, NETHER_WORLD, END_WORLD}) {
-            World w = Bukkit.getWorld(s);
-            if(w != null) {
-                w.setGameRule(GameRule.SEND_COMMAND_FEEDBACK, true);
-                w.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, true);
-                w.setGameRule(GameRule.REDUCED_DEBUG_INFO, true);
-            }
-        }
     }
 }

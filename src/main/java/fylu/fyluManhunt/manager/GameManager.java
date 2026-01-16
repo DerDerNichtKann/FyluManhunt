@@ -128,22 +128,15 @@ public class GameManager {
 
     public void eliminateRunner(Player p) {
         if (!isRunning) return;
+        p.setGameMode(GameMode.SPECTATOR);
         if (aliveRunners.contains(p.getUniqueId())) {
             aliveRunners.remove(p.getUniqueId());
-            p.setGameMode(GameMode.SPECTATOR);
-            checkWinConditions();
         }
     }
 
     public void dragonDied() {
         if (!isRunning) return;
         finishGame();
-    }
-
-    private void checkWinConditions() {
-        if (aliveRunners.isEmpty()) {
-            finishGame();
-        }
     }
 
     private void finishGame() {
@@ -176,13 +169,20 @@ public class GameManager {
     }
 
     public void tryRestoreGame() {
+        tryRestoreGame(true);
+    }
+
+    public void tryRestoreGame(boolean isCrash) {
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
         if (!file.exists()) return;
 
         org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         if (!cfg.getBoolean("game.running")) return;
 
-        Bukkit.getLogger().info("FyluManhunt: Crash erkannt! Stelle Spielstand wieder her...");
+        if (isCrash) {
+            Bukkit.getLogger().info("FyluManhunt: Crash erkannt! Stelle Spielstand wieder her...");
+            Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "SERVER CRASH ERKANNT! Spielstand wiederhergestellt.");
+        }
 
         this.isRunning = true;
         this.isPaused = true;
@@ -205,8 +205,6 @@ public class GameManager {
         startTimer();
         startAutoSave();
 
-        Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "SERVER CRASH ERKANNT! Spielstand wiederhergestellt.");
-        Bukkit.broadcastMessage(ChatColor.YELLOW + "Das Spiel ist PAUSIERT. Nutze /game unpause zum Fortsetzen.");
     }
 
     public void deleteCrashFile() {
@@ -268,11 +266,6 @@ public class GameManager {
     public boolean isPaused() { return isPaused; }
     public int getGameTime() { return gameTime; }
     public void setGameTime(int t) { this.gameTime = t; }
-
-    public void forceStartGameWithoutTeleport() {
-        isRunning = true; isPaused = true; aliveRunners.clear(); aliveRunners.addAll(runners);
-        plugin.getScoreboardManager().startHeartTask(); startTimer();
-    }
 
     private void startTimer() {
         if (timerTask != null && !timerTask.isCancelled()) timerTask.cancel();
