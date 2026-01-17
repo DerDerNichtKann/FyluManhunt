@@ -30,7 +30,16 @@ public class CommandLoad implements CommandExecutor, TabCompleter {
         }
 
         String name = args[0];
-        plugin.getWorldManager().loadGame(name, sender);
+        File backupDir = new File(plugin.getDataFolder(), "backups/" + name);
+        if (!backupDir.exists()) {
+            sender.sendMessage(ChatColor.RED + "Backup '" + name + "' existiert nicht!");
+            return true;
+        }
+
+        sender.sendMessage(ChatColor.GREEN + "Backup '" + name + "' vorbereitet.");
+        sender.sendMessage(ChatColor.RED + "SERVER WIRD NEU GESTARTET UM DATEN ZU LADEN...");
+        plugin.getWorldManager().scheduleRestartAndLoad(name);
+
         return true;
     }
 

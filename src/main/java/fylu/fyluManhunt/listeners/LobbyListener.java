@@ -1,7 +1,9 @@
 package fylu.fyluManhunt.listeners;
 
 import fylu.fyluManhunt.FyluManhunt;
+import fylu.fyluManhunt.manager.CompassManager;
 import fylu.fyluManhunt.manager.GameManager;
+import fylu.fyluManhunt.manager.WorldManager;
 import org.bukkit.*;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -51,24 +53,14 @@ public class LobbyListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
-
         if (plugin.getGameManager().isGameRunning()) {
-            if (isInLobbyWorld(p)) {
-                p.setGameMode(GameMode.SURVIVAL);
-                p.getInventory().clear();
-                World gameWorld = plugin.getWorldManager().getGameWorld();
-                Location spawn = gameWorld.getSpawnLocation();
-                spawn.setY(gameWorld.getHighestBlockYAt(spawn) + 1);
-                p.teleport(spawn);
-
-                if (!plugin.getGameManager().isRunner(p)) {
-                    plugin.getCompassManager().giveCompass(p);
-                    p.sendMessage(ChatColor.YELLOW + "Du bist dem laufenden Spiel beigetreten.");
+            plugin.getGameManager().restorePlayerData(p);
+            if (!plugin.getGameManager().isRunner(p)) {
+                boolean hasCompass = false;
+                for(ItemStack is : p.getInventory().getContents()) {
+                    if(is != null && is.getType() == Material.COMPASS) hasCompass = true;
                 }
-            } else {
-                if (!plugin.getGameManager().isRunner(p)) {
-                    plugin.getCompassManager().giveCompass(p);
-                }
+                if(!hasCompass) plugin.getCompassManager().giveCompass(p);
             }
             return;
         }

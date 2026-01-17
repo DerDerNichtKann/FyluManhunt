@@ -83,6 +83,8 @@ public class GameManager {
         aliveRunners.clear();
         aliveRunners.addAll(runners);
 
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
+
         plugin.getWorldManager().applyActivatorRules(activatorDisabled);
 
         World gw = plugin.getWorldManager().getGameWorld();
@@ -149,9 +151,7 @@ public class GameManager {
 
     public void saveCrashRecoveryFile() {
         if (!isRunning) return;
-
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
-
         PlayerStateManager.savePlayerStates(file);
 
         org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
@@ -164,8 +164,15 @@ public class GameManager {
         cfg.set("settings.bedbomb.end", bedbombEnd);
         cfg.set("settings.activator", activatorDisabled);
         cfg.set("settings.difficulty", difficulty.name());
+        cfg.set("game.paused", isPaused);
 
         try { cfg.save(file); } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void restorePlayerData(Player p) {
+        File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
+        if (!file.exists()) return;
+        PlayerStateManager.loadSinglePlayerState(p, file);
     }
 
     public void tryRestoreGame() {
@@ -176,16 +183,26 @@ public class GameManager {
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
         if (!file.exists()) return;
 
+        // Welten laden
+        if (Bukkit.getWorld(WorldManager.GAME_WORLD) == null) new WorldCreator(WorldManager.GAME_WORLD).createWorld();
+        if (Bukkit.getWorld(WorldManager.NETHER_WORLD) == null) new WorldCreator(WorldManager.NETHER_WORLD).environment(World.Environment.NETHER).createWorld();
+        if (Bukkit.getWorld(WorldManager.END_WORLD) == null) new WorldCreator(WorldManager.END_WORLD).environment(World.Environment.THE_END).createWorld();
+
         org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         if (!cfg.getBoolean("game.running")) return;
 
         if (isCrash) {
             Bukkit.getLogger().info("FyluManhunt: Crash erkannt! Stelle Spielstand wieder her...");
             Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "SERVER CRASH ERKANNT! Spielstand wiederhergestellt.");
+            this.isPaused = true;
+        } else {
+            this.isPaused = false;
         }
 
+        if (this.isPaused) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick freeze");
+        else Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
+
         this.isRunning = true;
-        this.isPaused = true;
         this.gameTime = cfg.getInt("game.time");
         this.headStartSeconds = cfg.getInt("settings.headstart");
         this.bedbombNether = cfg.getBoolean("settings.bedbomb.nether");
@@ -199,12 +216,14 @@ public class GameManager {
         for(String s : cfg.getStringList("game.alive")) this.aliveRunners.add(UUID.fromString(s));
 
         plugin.getWorldManager().applyActivatorRules(activatorDisabled);
-        PlayerStateManager.loadPlayerStates(file);
+
+        // WICHTIG: Hier laden wir NICHT MEHR die Spielerdaten aller Spieler.
+        // Warum? Weil beim Serverstart noch niemand online ist!
+        // Das passiert jetzt im LobbyListener beim Join.
 
         plugin.getScoreboardManager().startHeartTask();
         startTimer();
         startAutoSave();
-
     }
 
     public void deleteCrashFile() {
@@ -240,6 +259,8 @@ public class GameManager {
 
     public void stopGame() {
         isRunning = false;
+        isPaused = false;
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
         if (timerTask != null) timerTask.cancel();
         if (autoSaveTask != null) autoSaveTask.cancel();
         deleteCrashFile();
@@ -249,11 +270,15 @@ public class GameManager {
 
     public void togglePause() {
         this.isPaused = !this.isPaused;
+        String msg = isPaused ? ChatColor.GOLD + "Spiel pausiert!" : ChatColor.GREEN + "Spiel läuft weiter!";
+        for(Player p : Bukkit.getOnlinePlayers()) {
+            if(!isRunner(p)) {
+                p.sendMessage(msg);
+            }
+        }
         if (isPaused) {
-            Bukkit.broadcastMessage(ChatColor.GOLD + "Spiel pausiert!");
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick freeze");
         } else {
-            Bukkit.broadcastMessage(ChatColor.GREEN + "Spiel läuft weiter!");
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
         }
     }

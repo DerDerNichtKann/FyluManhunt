@@ -4,6 +4,7 @@ import fylu.fyluManhunt.commands.*;
 import fylu.fyluManhunt.listeners.*;
 import fylu.fyluManhunt.manager.*;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class FyluManhunt extends JavaPlugin {
@@ -18,6 +19,8 @@ public class FyluManhunt extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
+
         this.worldManager = new WorldManager(this);
         this.compassManager = new CompassManager(this);
         this.scoreboardManager = new ScoreboardManager(this);
@@ -27,8 +30,31 @@ public class FyluManhunt extends JavaPlugin {
             new ManhuntExpansion(this).register();
         }
 
-        // Commands registrieren
-        getCommand("game").setExecutor(new CommandGame(this));
+        registerCommands();
+        registerEvents();
+
+        worldManager.checkAndRestoreBackupOnStartup();
+
+        worldManager.teleportToLobbyForAll();
+
+        getServer().getScheduler().runTaskLater(this, () -> {
+            gameManager.tryRestoreGame();
+        }, 40L);
+    }
+
+    @Override
+    public void onDisable() {
+        if (gameManager != null && gameManager.isGameRunning()) {
+            gameManager.saveCrashRecoveryFile();
+        }
+    }
+
+    private void registerCommands() {
+        CommandGame cmdGame = new CommandGame(this);
+        getCommand("game").setExecutor(cmdGame);
+        getCommand("pause").setExecutor(cmdGame);
+        getCommand("unpause").setExecutor(cmdGame);
+        getCommand("vorsprung").setExecutor(cmdGame);
 
         CommandManhunt cmdManhunt = new CommandManhunt(this);
         getCommand("manhuntstart").setExecutor(cmdManhunt);
@@ -43,29 +69,19 @@ public class FyluManhunt extends JavaPlugin {
         getCommand("setseed").setExecutor(cmdTools);
 
         getCommand("save").setExecutor(new CommandSave(this));
+
         CommandLoad cmdLoad = new CommandLoad(this);
         getCommand("load").setExecutor(cmdLoad);
         getCommand("load").setTabCompleter(cmdLoad);
 
         getCommand("worldreset").setExecutor(new CommandWorldReset(this));
         getCommand("worldclear").setExecutor(new CommandWorldReset(this));
+    }
 
+    private void registerEvents() {
         getServer().getPluginManager().registerEvents(new GameListener(this), this);
         getServer().getPluginManager().registerEvents(new LobbyListener(this), this);
         getServer().getPluginManager().registerEvents(new PortalListener(this), this);
-
-        worldManager.teleportToLobbyForAll();
-
-        getServer().getScheduler().runTaskLater(this, () -> {
-            gameManager.tryRestoreGame();
-        }, 40L);
-    }
-
-    @Override
-    public void onDisable() {
-        if (gameManager != null && gameManager.isGameRunning()) {
-            gameManager.saveCrashRecoveryFile();
-        }
     }
 
     public static FyluManhunt getInstance() { return instance; }
