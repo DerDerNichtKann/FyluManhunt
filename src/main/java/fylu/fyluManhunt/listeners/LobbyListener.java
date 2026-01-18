@@ -3,8 +3,9 @@ package fylu.fyluManhunt.listeners;
 import fylu.fyluManhunt.FyluManhunt;
 import fylu.fyluManhunt.manager.CompassManager;
 import fylu.fyluManhunt.manager.GameManager;
-import fylu.fyluManhunt.manager.WorldManager;
+import fylu.fyluManhunt.manager.PlayerStateManager;
 import org.bukkit.*;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,6 +24,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
+import java.io.File;
 import java.util.Arrays;
 
 public class LobbyListener implements Listener {
@@ -54,7 +56,8 @@ public class LobbyListener implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
         if (plugin.getGameManager().isGameRunning()) {
-            plugin.getGameManager().restorePlayerData(p);
+            attemptBackupRestore(p);
+
             if (!plugin.getGameManager().isRunner(p)) {
                 boolean hasCompass = false;
                 for(ItemStack is : p.getInventory().getContents()) {
@@ -62,10 +65,34 @@ public class LobbyListener implements Listener {
                 }
                 if(!hasCompass) plugin.getCompassManager().giveCompass(p);
             }
+            plugin.getScoreboardManager().updateTab();
             return;
         }
 
         handleLobbyJoin(p);
+    }
+
+    private void attemptBackupRestore(Player p) {
+        File pendingFile = new File(plugin.getDataFolder(), "restore_pending.yml");
+        if (!pendingFile.exists()) return;
+        PlayerStateManager.loadSinglePlayerState(p, pendingFile);
+        try {
+            YamlConfiguration cfg = YamlConfiguration.loadConfiguration(pendingFile);
+            String path = p.getUniqueId().toString();
+
+            if (cfg.contains(path)) {
+                cfg.set(path, null);
+                cfg.save(pendingFile);
+                p.sendMessage(ChatColor.GREEN + "Backup-Daten geladen.");
+            }
+
+            if (cfg.getKeys(false).isEmpty()) {
+                pendingFile.delete();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @EventHandler

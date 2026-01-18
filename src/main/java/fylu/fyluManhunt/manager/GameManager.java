@@ -150,20 +150,26 @@ public class GameManager {
     }
 
     public void saveCrashRecoveryFile() {
-        if (!isRunning) return;
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
-        PlayerStateManager.savePlayerStates(file);
+
+        if (isRunning) {
+            PlayerStateManager.savePlayerStates(file);
+        }
 
         org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
-        cfg.set("game.running", true);
+
+        cfg.set("game.running", isRunning);
         cfg.set("game.time", gameTime);
         cfg.set("game.runners", runners.stream().map(UUID::toString).collect(Collectors.toList()));
         cfg.set("game.alive", aliveRunners.stream().map(UUID::toString).collect(Collectors.toList()));
+
         cfg.set("settings.headstart", headStartSeconds);
         cfg.set("settings.bedbomb.nether", bedbombNether);
         cfg.set("settings.bedbomb.end", bedbombEnd);
         cfg.set("settings.activator", activatorDisabled);
         cfg.set("settings.difficulty", difficulty.name());
+        cfg.set("settings.timer_visible", timerVisible);
+        cfg.set("settings.show_hearts", plugin.getScoreboardManager().isShowingHearts());
         cfg.set("game.paused", isPaused);
 
         try { cfg.save(file); } catch (Exception e) { e.printStackTrace(); }
@@ -183,12 +189,27 @@ public class GameManager {
         File file = new File(plugin.getDataFolder(), "crash_recovery.yml");
         if (!file.exists()) return;
 
-        // Welten laden
         if (Bukkit.getWorld(WorldManager.GAME_WORLD) == null) new WorldCreator(WorldManager.GAME_WORLD).createWorld();
         if (Bukkit.getWorld(WorldManager.NETHER_WORLD) == null) new WorldCreator(WorldManager.NETHER_WORLD).environment(World.Environment.NETHER).createWorld();
         if (Bukkit.getWorld(WorldManager.END_WORLD) == null) new WorldCreator(WorldManager.END_WORLD).environment(World.Environment.THE_END).createWorld();
 
         org.bukkit.configuration.file.FileConfiguration cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+
+        this.headStartSeconds = cfg.getInt("settings.headstart", 60);
+        this.bedbombNether = cfg.getBoolean("settings.bedbomb.nether", true);
+        this.bedbombEnd = cfg.getBoolean("settings.bedbomb.end", true);
+        this.activatorDisabled = cfg.getBoolean("settings.activator", false);
+        this.timerVisible = cfg.getBoolean("settings.timer_visible", true);
+        plugin.getScoreboardManager().setShowHearts(cfg.getBoolean("settings.show_hearts", true));
+        try { this.difficulty = Difficulty.valueOf(cfg.getString("settings.difficulty", "NORMAL")); } catch (Exception e) {}
+
+        this.runners.clear();
+        for(String s : cfg.getStringList("game.runners")) {
+            try { this.runners.add(UUID.fromString(s)); } catch(Exception ignored){}
+        }
+
+        plugin.getWorldManager().applyActivatorRules(activatorDisabled);
+
         if (!cfg.getBoolean("game.running")) return;
 
         if (isCrash) {
@@ -199,27 +220,20 @@ public class GameManager {
             this.isPaused = false;
         }
 
+        if (cfg.contains("game.paused")) {
+            this.isPaused = cfg.getBoolean("game.paused");
+        }
+
         if (this.isPaused) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick freeze");
         else Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tick unfreeze");
 
         this.isRunning = true;
         this.gameTime = cfg.getInt("game.time");
-        this.headStartSeconds = cfg.getInt("settings.headstart");
-        this.bedbombNether = cfg.getBoolean("settings.bedbomb.nether");
-        this.bedbombEnd = cfg.getBoolean("settings.bedbomb.end");
-        this.activatorDisabled = cfg.getBoolean("settings.activator", false);
-        try { this.difficulty = Difficulty.valueOf(cfg.getString("settings.difficulty", "NORMAL")); } catch (Exception e) {}
 
-        this.runners.clear();
-        for(String s : cfg.getStringList("game.runners")) this.runners.add(UUID.fromString(s));
         this.aliveRunners.clear();
-        for(String s : cfg.getStringList("game.alive")) this.aliveRunners.add(UUID.fromString(s));
-
-        plugin.getWorldManager().applyActivatorRules(activatorDisabled);
-
-        // WICHTIG: Hier laden wir NICHT MEHR die Spielerdaten aller Spieler.
-        // Warum? Weil beim Serverstart noch niemand online ist!
-        // Das passiert jetzt im LobbyListener beim Join.
+        for(String s : cfg.getStringList("game.alive")) {
+            try { this.aliveRunners.add(UUID.fromString(s)); } catch(Exception ignored){}
+        }
 
         plugin.getScoreboardManager().startHeartTask();
         startTimer();

@@ -87,6 +87,12 @@ public class WorldManager {
                 Files.copy(gameState.toPath(), new File(plugin.getDataFolder(), "crash_recovery.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
 
+            File backupPlayerFile = new File(backupDir, "playerdata.yml");
+            if (backupPlayerFile.exists()) {
+                File pendingFile = new File(plugin.getDataFolder(), "restore_pending.yml");
+                Files.copy(backupPlayerFile.toPath(), pendingFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+
             Bukkit.getLogger().info("FyluManhunt: Backup Dateien erfolgreich kopiert!");
 
         } catch (Exception e) {
@@ -98,13 +104,11 @@ public class WorldManager {
     public void saveGame(String slotName, CommandSender sender) {
         sender.sendMessage(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
 
-        // 1. Welten speichern und Autosave DEAKTIVIEREN
         for(World w : Bukkit.getWorlds()) {
             w.save();
             w.setAutoSave(false);
         }
 
-        // 20 Ticks warten (1 Sekunde), damit Disk-Writes durchlaufen
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 try {
@@ -128,9 +132,10 @@ public class WorldManager {
 
                         plugin.getGameManager().saveCrashRecoveryFile();
                         File crashFile = new File(plugin.getDataFolder(), "crash_recovery.yml");
+                        File destGamestate = new File(backupDir, "gamestate.yml");
                         if(crashFile.exists()) {
                             try {
-                                Files.copy(crashFile.toPath(), new File(backupDir, "gamestate.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
+                                Files.copy(crashFile.toPath(), destGamestate.toPath(), StandardCopyOption.REPLACE_EXISTING);
                             } catch(IOException e) { e.printStackTrace(); }
                         }
                         sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich erstellt.");
