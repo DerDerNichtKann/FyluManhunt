@@ -256,6 +256,19 @@ public class GameManager {
         }
     }
 
+    public void joinLateHunter(Player p) {
+        PlayerStateManager.resetPlayerFull(p);
+        World gw = plugin.getWorldManager().getGameWorld();
+        if (gw != null) {
+            Location spawn = gw.getSpawnLocation();
+            spawn.setY(gw.getHighestBlockYAt(spawn) + 1);
+            p.teleport(spawn);
+
+            p.sendMessage(ChatColor.YELLOW + "Du bist dem laufenden Spiel als " + ChatColor.GREEN + "HUNTER" + ChatColor.YELLOW + " beigetreten!");
+            plugin.getCompassManager().giveCompass(p);
+        }
+    }
+
     public boolean isBedbombNether() { return bedbombNether; }
     public void setBedbombNether(boolean b) { this.bedbombNether = b; }
     public boolean isBedbombEnd() { return bedbombEnd; }

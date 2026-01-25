@@ -57,13 +57,16 @@ public class LobbyListener implements Listener {
         Player p = e.getPlayer();
         if (plugin.getGameManager().isGameRunning()) {
             attemptBackupRestore(p);
-
-            if (!plugin.getGameManager().isRunner(p)) {
-                boolean hasCompass = false;
-                for(ItemStack is : p.getInventory().getContents()) {
-                    if(is != null && is.getType() == Material.COMPASS) hasCompass = true;
+            if (p.getWorld().getName().equals("world")) {
+                plugin.getGameManager().joinLateHunter(p);
+            } else {
+                if (!plugin.getGameManager().isRunner(p)) {
+                    boolean hasCompass = false;
+                    for(ItemStack is : p.getInventory().getContents()) {
+                        if(is != null && is.getType() == Material.COMPASS) hasCompass = true;
+                    }
+                    if(!hasCompass) plugin.getCompassManager().giveCompass(p);
                 }
-                if(!hasCompass) plugin.getCompassManager().giveCompass(p);
             }
             plugin.getScoreboardManager().updateTab();
             return;
