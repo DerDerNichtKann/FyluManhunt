@@ -20,7 +20,7 @@ public class CommandWorldReset implements CommandExecutor {
         }
 
         plugin.getWorldManager().resetWorlds();
-        sender.sendMessage(ChatColor.GREEN + "Welt Reset eingeleitet!");
+        plugin.getLogger().info(ChatColor.GREEN + "Welt Reset eingeleitet!");
         return true;
     }
 }

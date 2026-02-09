@@ -15,7 +15,7 @@ public class CommandGame implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (label.equalsIgnoreCase("pause") || label.equalsIgnoreCase("unpause")) {
             if(!plugin.getGameManager().isGameRunning()) {
-                sender.sendMessage(ChatColor.RED + "Spiel läuft nicht.");
+                plugin.getLogger().info(ChatColor.RED + "Spiel läuft nicht.");
                 return true;
             }
             plugin.getGameManager().togglePause();
@@ -26,9 +26,9 @@ public class CommandGame implements CommandExecutor {
                 try {
                     int sek = Integer.parseInt(args[0]);
                     plugin.getGameManager().setHeadStartSeconds(sek);
-                    sender.sendMessage("§aVorsprung auf " + sek + "s gesetzt.");
+                    plugin.getLogger().info("§aVorsprung auf " + sek + "s gesetzt.");
                 } catch(NumberFormatException e) {
-                    sender.sendMessage("§cBitte Zahl angeben.");
+                    plugin.getLogger().info("§cBitte Zahl angeben.");
                 }
             }
             return true;

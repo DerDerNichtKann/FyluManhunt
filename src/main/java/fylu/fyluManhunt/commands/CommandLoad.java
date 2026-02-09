@@ -22,25 +22,59 @@ public class CommandLoad implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("manhunt.load")) return true;
-
-        if (args.length != 1) {
-            sender.sendMessage(ChatColor.RED + "Benutzung: /load <name>");
+        if (!sender.hasPermission("manhunt.load")) {
+            plugin.getLogger().info(ChatColor.RED + "Dazu hast du keine Rechte.");
             return true;
         }
 
-        String name = args[0];
+        String name;
+
+        if (args.length == 0) {
+            name = getLatestSaveName();
+            if (name == null) {
+                plugin.getLogger().info(ChatColor.RED + "Keine Backups gefunden, die geladen werden können.");
+                return true;
+            }
+            plugin.getLogger().info(ChatColor.YELLOW + "Kein Name angegeben. Lade neuesten Save: " + ChatColor.GOLD + name);
+        } else {
+            name = args[0];
+        }
+
         File backupDir = new File(plugin.getDataFolder(), "backups/" + name);
         if (!backupDir.exists()) {
-            sender.sendMessage(ChatColor.RED + "Backup '" + name + "' existiert nicht!");
+            plugin.getLogger().info(ChatColor.RED + "Backup '" + name + "' existiert nicht!");
             return true;
         }
 
-        sender.sendMessage(ChatColor.GREEN + "Backup '" + name + "' vorbereitet.");
-        sender.sendMessage(ChatColor.RED + "SERVER WIRD NEU GESTARTET UM DATEN ZU LADEN...");
+        plugin.getLogger().info(ChatColor.GREEN + "Backup '" + name + "' vorbereitet.");
+        plugin.getLogger().info(ChatColor.RED + "SERVER WIRD NEU GESTARTET UM DATEN ZU LADEN...");
         plugin.getWorldManager().scheduleRestartAndLoad(name);
 
         return true;
+    }
+
+    private String getLatestSaveName() {
+        File backupDir = new File(plugin.getDataFolder(), "backups");
+        if (!backupDir.exists() || !backupDir.isDirectory()) {
+            return null;
+        }
+
+        File[] files = backupDir.listFiles(File::isDirectory);
+        if (files == null || files.length == 0) {
+            return null;
+        }
+
+        File newestFile = null;
+        long lastModifiedTime = Long.MIN_VALUE;
+
+        for (File file : files) {
+            if (file.lastModified() > lastModifiedTime) {
+                lastModifiedTime = file.lastModified();
+                newestFile = file;
+            }
+        }
+
+        return (newestFile != null) ? newestFile.getName() : null;
     }
 
     @Override
@@ -49,7 +83,7 @@ public class CommandLoad implements CommandExecutor, TabCompleter {
             File backupDir = new File(plugin.getDataFolder(), "backups");
             if (!backupDir.exists() || !backupDir.isDirectory()) return new ArrayList<>();
             String[] files = backupDir.list();
-            if(files != null) return Arrays.asList(files);
+            if (files != null) return Arrays.asList(files);
         }
         return new ArrayList<>();
     }

@@ -102,7 +102,7 @@ public class WorldManager {
     }
 
     public void saveGame(String slotName, CommandSender sender) {
-        sender.sendMessage(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
+        plugin.getLogger().info(ChatColor.YELLOW + "Speichere Welten... (Bitte warten)");
 
         for(World w : Bukkit.getWorlds()) {
             w.save();
@@ -138,14 +138,14 @@ public class WorldManager {
                                 Files.copy(crashFile.toPath(), destGamestate.toPath(), StandardCopyOption.REPLACE_EXISTING);
                             } catch(IOException e) { e.printStackTrace(); }
                         }
-                        sender.sendMessage(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich erstellt.");
+                        plugin.getLogger().info(ChatColor.GREEN + "Backup '" + slotName + "' erfolgreich erstellt.");
                     });
 
                 } catch (Exception e) {
                     e.printStackTrace();
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         for(World w : Bukkit.getWorlds()) w.setAutoSave(true);
-                        sender.sendMessage(ChatColor.RED + "Fehler beim Speichern: " + e.getMessage());
+                        plugin.getLogger().info(ChatColor.RED + "Fehler beim Speichern: " + e.getMessage());
                     });
                 }
             });
